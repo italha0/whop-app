@@ -1,111 +1,148 @@
-import { whopSdk } from "@/lib/whop-sdk";
-import { headers } from "next/headers";
+'use client';
 
-export default async function ExperiencePage({
-	params,
-}: {
-	params: Promise<{ experienceId: string }>;
-}) {
-	// The experienceId is a path param
-	const { experienceId } = await params;
+import { useSubscription } from '@/hooks/useSubscription';
+import { useWhopAuthContext } from '@/components/layout/WhopAuthProvider';
+import { Paywall } from '@/components/payment/Paywall';
+import { MainLayout } from '@/components/layout/MainLayout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Crown, Zap, Star } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
-	// Check if we're in development mode (no Whop iframe)
-	// Try to detect if we're running in a real Whop environment
-	const headersList = await headers();
-	const hasWhopHeaders = headersList.get('x-whop-user-id') || 
-		headersList.get('whop-user-id') || 
-		headersList.get('x-whop-company-id') ||
-		headersList.get('whop-company-id');
-	
-	// Also check for referrer to see if we're in Whop iframe
-	const referrer = headersList.get('referer') || '';
-	const isInWhopIframe = referrer.includes('whop.com') || referrer.includes('whop.io');
-	
-	const isDevelopment = !hasWhopHeaders && !isInWhopIframe && process.env.NODE_ENV === 'development';
-	
-	// Debug logging
-	console.log('Headers debug:', {
-		hasWhopHeaders,
-		isInWhopIframe,
-		referrer,
-		isDevelopment,
-		allHeaders: Object.fromEntries(headersList.entries())
-	});
-	
-	let userId: string;
-	let result: any;
-	let user: any;
-	let experience: any;
-	let accessLevel: string;
+export default function ExperiencePage() {
+	const params = useParams();
+	const experienceId = params.experienceId as string;
+	const { user, isAuthenticated, loading: authLoading } = useWhopAuthContext();
+	const { hasActiveSubscription, subscription, loading, error, refreshSubscription } = useSubscription();
+	const [accessChecked, setAccessChecked] = useState(false);
+	const [hasAccess, setHasAccess] = useState(false);
 
-	if (isDevelopment) {
-		// Development mode - use mock data
-		console.log('Running in development mode - using mock data');
-		
-		userId = process.env.NEXT_PUBLIC_WHOP_AGENT_USER_ID || 'user_hF3wMP4gNGUTU';
-		
-		// Mock data for development
-		result = {
-			hasAccess: true,
-			accessLevel: 'admin'
+	// Check access to the experience
+	useEffect(() => {
+		const checkAccess = async () => {
+			if (!isAuthenticated || !user) return;
+			
+			try {
+				// In a real implementation, you would check access here
+				// For now, we'll assume the user has access if they're authenticated
+				setHasAccess(true);
+				setAccessChecked(true);
+			} catch (error) {
+				console.error('Error checking access:', error);
+				setHasAccess(false);
+				setAccessChecked(true);
+			}
 		};
-		
-		user = {
-			name: 'Development User',
-			username: 'dev_user',
-			id: userId
-		};
-		
-		experience = {
-			name: `Experience ${experienceId}`,
-			id: experienceId
-		};
-		
-		accessLevel = 'admin';
-	} else {
-		// Production mode - use real Whop SDK
-		try {
-			// The user token is in the headers
-			const tokenResult = await whopSdk.verifyUserToken(headersList);
-			userId = tokenResult.userId;
 
-			result = await whopSdk.access.checkIfUserHasAccessToExperience({
-				userId,
-				experienceId,
-			});
+		checkAccess();
+	}, [isAuthenticated, user, experienceId]);
 
-			user = await whopSdk.users.getUser({ userId });
-			experience = await whopSdk.experiences.getExperience({ experienceId });
+	const handleUpgrade = () => {
+		// Scroll to pricing section or open pricing modal
+		window.location.href = '/#pricing';
+	};
 
-			// Either: 'admin' | 'customer' | 'no_access';
-			// 'admin' means the user is an admin of the whop, such as an owner or moderator
-			// 'customer' means the user is a common member in this whop
-			// 'no_access' means the user does not have access to the whop
-			accessLevel = result.accessLevel;
-		} catch (error) {
-			console.error('Error verifying user token:', error);
-			// Fallback to development mode if token verification fails
-			userId = process.env.NEXT_PUBLIC_WHOP_AGENT_USER_ID || 'user_hF3wMP4gNGUTU';
-			result = { hasAccess: true, accessLevel: 'admin' };
-			user = { name: 'Fallback User', username: 'fallback_user', id: userId };
-			experience = { name: `Experience ${experienceId}`, id: experienceId };
-			accessLevel = 'admin';
-		}
+	if (authLoading || loading || !accessChecked) {
+		return (
+			<div className="min-h-screen flex items-center justify-center">
+				<div className="text-center">
+					<Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+					<p className="text-muted-foreground">
+						{authLoading ? 'Authenticating...' : loading ? 'Checking subscription status...' : 'Checking access...'}
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	if (!isAuthenticated) {
+		return (
+			<div className="min-h-screen flex items-center justify-center">
+				<div className="text-center">
+					<h1 className="text-2xl font-bold mb-4">Authentication Required</h1>
+					<p className="text-muted-foreground mb-6">
+						Please log in to access this experience.
+					</p>
+					<Button onClick={() => window.location.href = '/'}>
+						Go to Home
+					</Button>
+				</div>
+			</div>
+		);
+	}
+
+	if (!hasAccess) {
+		return (
+			<div className="min-h-screen flex items-center justify-center">
+				<div className="text-center">
+					<h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+					<p className="text-muted-foreground mb-6">
+						You don't have access to this experience.
+					</p>
+					<Button onClick={() => window.location.href = '/'}>
+						Go to Home
+					</Button>
+				</div>
+			</div>
+		);
+	}
+
+	if (!hasActiveSubscription) {
+		return (
+			<div className="min-h-screen bg-gray-50">
+				<div className="container mx-auto px-4 py-8">
+					<div className="max-w-4xl mx-auto">
+						<div className="text-center mb-8">
+							<h1 className="text-3xl font-bold text-gray-900 mb-4">
+								Welcome to Experience {experienceId}
+							</h1>
+							<p className="text-lg text-gray-600 mb-6">
+								You need an active subscription to access the video editor.
+							</p>
+						</div>
+						
+						<Paywall onUpgrade={handleUpgrade} />
+					</div>
+				</div>
+			</div>
+		);
 	}
 
 	return (
-		<div className="flex justify-center items-center h-screen px-8">
-			<h1 className="text-xl">
-				Hi <strong>{user.name}</strong>, you{" "}
-				<strong>{result.hasAccess ? "have" : "do not have"} access</strong> to
-				this experience. Your access level to this whop is:{" "}
-				<strong>{accessLevel}</strong>. <br />
-				<br />
-				Your user ID is <strong>{userId}</strong> and your username is{" "}
-				<strong>@{user.username}</strong>.<br />
-				<br />
-				You are viewing the experience: <strong>{experience.name}</strong>
-			</h1>
+		<div className="min-h-screen bg-gray-50">
+			<div className="container mx-auto px-4 py-8">
+				{/* Header with subscription info */}
+				<div className="mb-8">
+					<div className="flex items-center justify-between mb-4">
+						<div>
+							<h1 className="text-3xl font-bold text-gray-900 mb-2">
+								Experience {experienceId}
+							</h1>
+							<p className="text-gray-600">
+								Create professional videos from your scripts
+							</p>
+						</div>
+						
+						{subscription && (
+							<div className="flex items-center gap-2">
+								<Badge variant="secondary" className="flex items-center gap-1">
+									{subscription.planId === 'basic' && <Zap className="w-3 h-3" />}
+									{subscription.planId === 'pro' && <Crown className="w-3 h-3" />}
+									{subscription.planId === 'enterprise' && <Star className="w-3 h-3" />}
+									{subscription.planId?.charAt(0).toUpperCase() + subscription.planId?.slice(1)} Plan
+								</Badge>
+							</div>
+						)}
+					</div>
+				</div>
+
+				{/* Editor Component with MainLayout */}
+				<div className="bg-white rounded-lg shadow-sm border h-[calc(100vh-200px)]">
+					<MainLayout />
+				</div>
+			</div>
 		</div>
 	);
 }

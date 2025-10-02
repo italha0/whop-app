@@ -1,0 +1,84 @@
+# Minimal worker image for rendering + Azure upload
+FROM node:20-bullseye-slim
+
+ENV NODE_ENV=production \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    LANG=C.UTF-8
+
+# Install Chromium and required system libraries for headless rendering
+RUN apt-get update && apt-get install -y \
+    chromium \
+    ca-certificates \
+    fontconfig \
+    fonts-liberation \
+    fonts-noto-color-emoji \
+    fonts-noto-core \
+    fonts-noto-cjk \
+    curl \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcairo2 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libglib2.0-0 \
+    libgtk-3-0 \
+    libxkbcommon0 \
+    libxss1 \
+    libu2f-udev \
+    libnspr4 \
+    libnss3 \
+    libpango-1.0-0 \
+    libx11-6 \
+    libx11-xcb1 \
+    libxcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxrandr2 \
+    libxshmfence1 \
+    lsb-release \
+    wget \
+    xdg-utils \
+    --no-install-recommends && \
+    echo "Re-installing fontconfig and rebuilding cache..." && \
+    apt-get install -y --reinstall fontconfig && \
+    echo "Listing noto font files..." && \
+    ls -l /usr/share/fonts/truetype/noto/ && \
+    echo "Rebuilding font cache..." && \
+    fc-cache -f -v && \
+    echo "Listing all fonts..." && \
+    fc-list && \
+    rm -rf /var/lib/apt/lists/*
+
+# Make Chromium the default executable for Remotion/Puppeteer
+ENV REMOTION_BROWSER_EXECUTABLE=/usr/bin/chromium \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+WORKDIR /app
+
+# Install pnpm and ALL dependencies to build the project
+COPY package.json pnpm-lock.yaml tsconfig.json ./
+RUN corepack enable && \
+    corepack prepare pnpm@latest --activate && \
+    pnpm install
+
+# Copy source code
+COPY worker ./worker
+COPY lib ./lib
+COPY remotion ./remotion
+COPY scripts ./scripts
+COPY public ./public
+
+# Build the typescript files
+RUN pnpm exec tsc
+
+# Remove dev dependencies
+RUN pnpm prune --prod
+
+# Healthcheck is optional; we rely on logs and Supabase DB state
+
+CMD ["node", "worker/worker.cjs"]
