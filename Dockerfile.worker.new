@@ -1,0 +1,115 @@
+# Optimized Worker Image for Whop App Remotion Video Rendering
+FROM node:20-bullseye-slim
+
+ENV NODE_ENV=production \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    LANG=C.UTF-8 \
+    DEBIAN_FRONTEND=noninteractive
+
+# Install Chromium and required system libraries for headless rendering
+RUN apt-get update && apt-get install -y \
+    chromium \
+    ca-certificates \
+    fontconfig \
+    fonts-liberation \
+    fonts-noto-color-emoji \
+    fonts-noto-core \
+    fonts-noto-cjk \
+    fonts-noto-sans \
+    fonts-noto-serif \
+    fonts-dejavu-core \
+    fonts-freefont-ttf \
+    curl \
+    wget \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcairo2 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libglib2.0-0 \
+    libgtk-3-0 \
+    libxkbcommon0 \
+    libxss1 \
+    libu2f-udev \
+    libnspr4 \
+    libnss3 \
+    libpango-1.0-0 \
+    libx11-6 \
+    libx11-xcb1 \
+    libxcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxrandr2 \
+    libxshmfence1 \
+    lsb-release \
+    xdg-utils \
+    --no-install-recommends && \
+    echo "Rebuilding font cache for emoji support..." && \
+    fc-cache -f -v && \
+    echo "Testing emoji font availability..." && \
+    fc-list | grep -i emoji && \
+    fc-match "Noto Color Emoji" && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set Chromium as the default browser executable
+ENV REMOTION_BROWSER_EXECUTABLE=/usr/bin/chromium \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    FONTCONFIG_PATH=/etc/fonts \
+    FC_CONFIG_FILE=/etc/fonts/fonts.conf
+
+# Create app directory
+WORKDIR /app
+
+# Install pnpm
+RUN corepack enable && \
+    corepack prepare pnpm@latest --activate
+
+# Copy package files first for better Docker layer caching
+COPY package.json pnpm-lock.yaml tsconfig.json ./
+COPY remotion/package.json ./remotion/ 2>/dev/null || true
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile --prod=false
+
+# Copy source code
+COPY worker ./worker
+COPY lib ./lib
+COPY remotion ./remotion
+COPY scripts ./scripts
+COPY public ./public
+COPY types ./types
+
+# Build TypeScript files if needed
+RUN if [ -f "tsconfig.json" ]; then \
+        echo "Building TypeScript files..." && \
+        pnpm exec tsc --noEmit && \
+        echo "TypeScript build completed"; \
+    fi
+
+# Remove dev dependencies to reduce image size
+RUN pnpm prune --prod
+
+# Create non-root user for security
+RUN groupadd -r worker && useradd -r -g worker worker && \
+    chown -R worker:worker /app && \
+    mkdir -p /tmp/remotion && \
+    chown -R worker:worker /tmp/remotion
+
+# Switch to non-root user
+USER worker
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD node -e "console.log('Worker health check passed')" || exit 1
+
+# Expose port for potential API endpoints
+EXPOSE 3000
+
+# Start the worker
+CMD ["node", "worker/worker.cjs"]
+
