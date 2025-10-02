@@ -5,19 +5,25 @@ A professional script-to-video platform integrated with Whop for subscription ma
 ## 🚀 Features
 
 - **Script-to-Video Creation**: Transform text scripts into professional videos
+- **Emoji Support**: Full emoji rendering in videos with proper font support
 - **Whop Integration**: Seamless subscription management and payments
 - **Multiple Themes**: Various video templates and themes
 - **Real-time Preview**: Live preview of video content
 - **Subscription Gating**: Access control based on subscription status
 - **Professional Quality**: 4K video output support
+- **Azure VM Processing**: Scalable video rendering on Azure infrastructure
+- **Queue Management**: Redis-based job queue for reliable processing
 
 ## 🏗️ Architecture
 
 - **Frontend**: Next.js with Remotion for video rendering
 - **Backend**: Appwrite for database and authentication
-- **Video Processing**: Azure VM for video rendering
+- **Video Processing**: Azure VM with Docker containers for scalable rendering
+- **Queue System**: Redis (Azure Cache) for job management
+- **Storage**: Azure Blob Storage for video files
+- **Database**: Supabase for render job tracking
 - **Payments**: Whop for subscription management
-- **Deployment**: Whop platform
+- **Deployment**: Whop platform + Azure VM worker
 
 ## 📋 Prerequisites
 
@@ -25,6 +31,10 @@ A professional script-to-video platform integrated with Whop for subscription ma
 - Whop developer account
 - Appwrite instance
 - Azure VM for video rendering
+- Azure Storage Account
+- Redis instance (Azure Cache for Redis)
+- Supabase project
+- Docker (for local development and deployment)
 
 ## 🛠️ Setup Instructions
 
@@ -33,7 +43,6 @@ A professional script-to-video platform integrated with Whop for subscription ma
 ```bash
 # Clone the repository
 git clone <your-repo-url>
-cd my-whop-app
 
 # Install dependencies
 npm install
@@ -41,34 +50,173 @@ npm install
 
 ### 2. Environment Configuration
 
-Create a `.env.local` file in the root directory with the following variables:
+Create a `.env.local` file in the root directory using `config.example.env` as a template:
+
+```bash
+cp config.example.env .env.local
+```
+
+Update the following variables with your actual values:
 
 ```env
 # Whop Configuration
-WHOP_API_KEY=z8GLH-3blveAVAFvrhn5Ut7heiaHhUEGMiI1K760dm0
-NEXT_PUBLIC_WHOP_APP_ID=app_SnIaXUWJd7LguW
-NEXT_PUBLIC_WHOP_AGENT_USER_ID=user_hF3wMP4gNGUTU
-NEXT_PUBLIC_WHOP_COMPANY_ID=biz_iiSRDu5bZyPLIJ
-WHOP_WEBHOOK_SECRET=your_whop_webhook_secret_here
+WHOP_API_KEY=your_whop_api_key
+NEXT_PUBLIC_WHOP_APP_ID=your_whop_app_id
+NEXT_PUBLIC_WHOP_AGENT_USER_ID=your_whop_agent_user_id
+NEXT_PUBLIC_WHOP_COMPANY_ID=your_whop_company_id
+WHOP_WEBHOOK_SECRET=your_whop_webhook_secret
 
 # Appwrite Configuration
-APPWRITE_ENDPOINT=https://your-appwrite-endpoint.com/v1
-APPWRITE_KEY=your_appwrite_api_key_here
+APPWRITE_ENDPOINT=https://fra.cloud.appwrite.io/v1
+APPWRITE_KEY=your_appwrite_api_key
+NEXT_PUBLIC_APPWRITE_ENDPOINT=https://fra.cloud.appwrite.io/v1
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=your_appwrite_project_id
 
-# Azure VM Configuration
-AZURE_RENDER_URL=https://your-azure-vm-url.com
-AZURE_API_KEY=your_azure_api_key_here
+# Supabase Configuration (for video rendering)
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
-# Database Configuration
-DATABASE_ID=main
-SUBSCRIPTIONS_COLLECTION_ID=subscriptions
+# Azure Storage Configuration
+AZURE_STORAGE_ACCOUNT_NAME=your_storage_account_name
+AZURE_STORAGE_ACCOUNT_KEY=your_storage_account_key
+AZURE_STORAGE_CONNECTION_STRING=your_storage_connection_string
+
+# Redis Configuration
+REDIS_URL=your_redis_connection_string
 ```
 
-### 3. Appwrite Database Setup
+### 3. Database Setup
 
-Create the following collections in your Appwrite database:
+#### Supabase Setup
+Run the SQL scripts in the `scripts/` directory to create the required tables:
 
-#### Subscriptions Collection
+```sql
+-- Run these in your Supabase SQL editor
+-- scripts/001_create_tables.sql
+-- scripts/002_profile_trigger.sql
+-- scripts/003_renders_table.sql
+-- scripts/004_daily_render_quota.sql
+-- scripts/005_video_renders_table.sql
+-- scripts/006_add_blob_name.sql
+```
+
+#### Appwrite Setup (Optional)
+Create the following collections in your Appwrite database if using Appwrite for additional features:
+
+### 4. Azure VM Worker Setup
+
+#### Build and Deploy Worker
+```bash
+# Build Docker image
+npm run docker:build
+
+# Deploy to Azure VM (update scripts/deploy-to-azure.sh with your VM details)
+npm run deploy:azure
+```
+
+#### Manual Deployment
+```bash
+# Copy worker files to Azure VM
+scp -i "path/to/your/key.pem" -r worker/ azureuser@your-vm-ip:/home/azureuser/whop-app/
+
+# SSH to Azure VM and run
+ssh -i "path/to/your/key.pem" azureuser@your-vm-ip
+cd whop-app
+docker build -f Dockerfile.worker -t whop-video-worker .
+docker run -d --name whop-video-worker --env-file worker/worker.env --restart unless-stopped whop-video-worker
+```
+
+### 5. Testing
+
+#### Test Worker Integration
+```bash
+# Test the complete worker setup
+npm run worker:test
+
+# Test emoji prefetching
+npm run prefetch:emojis
+
+# Check worker logs on Azure VM
+ssh -i "path/to/your/key.pem" azureuser@your-vm-ip 'docker logs whop-video-worker'
+```
+
+## 🎨 Emoji Support
+
+This app includes comprehensive emoji support for video rendering:
+
+- **Font-based rendering**: Uses system emoji fonts for reliable rendering
+- **Prefetching**: Common emojis are cached for offline use
+- **Cross-platform**: Works on Windows, macOS, and Linux
+- **Video-optimized**: Emojis render correctly in video output
+
+### Emoji Configuration
+
+The worker automatically processes emoji text in:
+- Message content
+- User names
+- Any text fields containing emojis
+
+Emojis are rendered using the following font stack:
+- Apple Color Emoji (macOS/iOS)
+- Segoe UI Emoji (Windows)
+- Noto Color Emoji (Linux)
+- System fallbacks
+
+## 🚀 Development
+
+### Local Development
+```bash
+# Start the Next.js app
+npm run dev
+
+# Start worker locally (requires Redis and other services)
+npm run worker:dev
+
+# Preview Remotion compositions
+npm run remotion:preview
+```
+
+### Production Deployment
+
+1. **Deploy Web App**: Deploy to Whop platform
+2. **Deploy Worker**: Use `npm run deploy:azure` to deploy worker to Azure VM
+3. **Monitor**: Check logs and status using provided scripts
+
+## 📊 Monitoring
+
+### Worker Status
+```bash
+# Check if worker is running
+ssh -i "key.pem" azureuser@vm-ip 'docker ps | grep whop-video-worker'
+
+# View worker logs
+ssh -i "key.pem" azureuser@vm-ip 'docker logs whop-video-worker --tail 50'
+
+# Check system resources
+ssh -i "key.pem" azureuser@vm-ip 'htop'
+```
+
+### Queue Status
+Monitor your Redis queue through Azure Portal or Redis CLI.
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+1. **Emoji not rendering**: Ensure emoji fonts are installed on the worker system
+2. **Worker not processing jobs**: Check Redis connection and worker logs
+3. **Video upload fails**: Verify Azure Storage credentials
+4. **Database errors**: Check Supabase connection and table structure
+
+### Debug Commands
+```bash
+# Test individual components
+npm run worker:test
+node -e "console.log(require('./lib/queue').getRenderQueue())"
+```
+
+#### Subscriptions Collection (Appwrite - Optional)
 ```json
 {
   "collectionId": "subscriptions",

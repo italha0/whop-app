@@ -50,8 +50,11 @@ RUN apt-get update && apt-get install -y \
     ls -l /usr/share/fonts/truetype/noto/ && \
     echo "Rebuilding font cache..." && \
     fc-cache -f -v && \
-    echo "Listing all fonts..." && \
-    fc-list && \
+    echo "Listing emoji fonts..." && \
+    fc-list | grep -i emoji && \
+    echo "Testing emoji font availability..." && \
+    fc-match "Apple Color Emoji" && \
+    fc-match "Noto Color Emoji" && \
     rm -rf /var/lib/apt/lists/*
 
 # Make Chromium the default executable for Remotion/Puppeteer
@@ -73,8 +76,8 @@ COPY remotion ./remotion
 COPY scripts ./scripts
 COPY public ./public
 
-# Build the typescript files
-RUN pnpm exec tsc
+# Build the typescript files (if needed)
+RUN if [ -f "tsconfig.json" ]; then pnpm exec tsc; fi
 
 # Remove dev dependencies
 RUN pnpm prune --prod
