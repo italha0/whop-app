@@ -39,26 +39,31 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 # MoviePy import compatible with both 1.x and 2.x
 try:
+    # MoviePy 1.x (and many 2.x builds)
     from moviepy.editor import (
         ImageClip,
         CompositeVideoClip,
         AudioFileClip,
         CompositeAudioClip,
     )
-except Exception:  # pragma: no cover - fallback for alternative packaging
+except Exception:
     try:
-        # MoviePy 2.x style: from moviepy import editor as mp
-        from moviepy import editor as mp  # type: ignore
-        ImageClip = mp.ImageClip  # type: ignore
-        CompositeVideoClip = mp.CompositeVideoClip  # type: ignore
-        AudioFileClip = mp.AudioFileClip  # type: ignore
-        CompositeAudioClip = mp.CompositeAudioClip  # type: ignore
-    except Exception as e:  # Provide a clear error
-        raise ModuleNotFoundError(
-            "MoviePy is installed but 'moviepy.editor' could not be imported. "
-            "This can happen with certain 2.x builds. Try upgrading/downgrading moviepy, "
-            "or ensure no local 'moviepy.py' shadows the package."
-        ) from e
+        # MoviePy 2.x sometimes exposes classes at top-level
+        from moviepy import ImageClip, CompositeVideoClip, AudioFileClip, CompositeAudioClip  # type: ignore
+    except Exception:
+        try:
+            # Some 2.x builds still provide an 'editor' module imported differently
+            from moviepy import editor as mp  # type: ignore
+            ImageClip = mp.ImageClip  # type: ignore
+            CompositeVideoClip = mp.CompositeVideoClip  # type: ignore
+            AudioFileClip = mp.AudioFileClip  # type: ignore
+            CompositeAudioClip = mp.CompositeAudioClip  # type: ignore
+        except Exception as e:  # Provide a clear error
+            raise ModuleNotFoundError(
+                "MoviePy is installed but neither 'moviepy.editor' nor top-level classes "
+                "could be imported. Try 'pip install moviepy==1.0.3' (classic API) or ensure "
+                "no local 'moviepy.py' shadows the package."
+            ) from e
 from pydub import AudioSegment
 
 
