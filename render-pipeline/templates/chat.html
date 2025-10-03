@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Renderer</title>
+    <style>
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+            background: transparent;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Device frame */
+        .device-frame {
+            width: 390px;
+            height: 844px;
+            background: #FFFFFF;
+            border-radius: 48px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+            isolation: isolate;
+        }
+
+        /* Status bar */
+        .status-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 18px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #000000;
+            z-index: 1000;
+            background: #FFFFFF;
+        }
+
+        .status-bar .time {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .status-bar .indicators {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .signal-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+        }
+
+        .signal-bar {
+            width: 3px;
+            background: #000000;
+            border-radius: 1px;
+        }
+
+        .signal-bar:nth-child(1) { height: 4px; }
+        .signal-bar:nth-child(2) { height: 7px; }
+        .signal-bar:nth-child(3) { height: 10px; }
+        .signal-bar:nth-child(4) { height: 13px; }
+
+        .wifi-icon {
+            width: 18px;
+            height: 14px;
+        }
+
+        .battery {
+            position: relative;
+            width: 28px;
+            height: 14px;
+            border: 2px solid #000000;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            padding: 0 3px;
+            box-sizing: border-box;
+        }
+
+        .battery::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            right: -5px;
+            width: 3px;
+            height: 8px;
+            background: #000000;
+            border-radius: 1px;
+        }
+
+        .battery-level {
+            width: 100%;
+            height: 6px;
+            background: #000000;
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+
+        .battery-level.low {
+            background: #FF3B30;
+        }
+
+        /* Navigation header */
+        .nav-header {
+            position: absolute;
+            top: 44px;
+            left: 0;
+            right: 0;
+            height: 52px;
+            background: #F2F2F7;
+            border-bottom: 1px solid #C7C7CC;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            z-index: 900;
+        }
+
+        .nav-header .back {
+            font-size: 17px;
+            color: #007AFF;
+        }
+
+        .nav-header .title {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 17px;
+            font-weight: 600;
+            color: #000000;
+        }
+
+        /* Chat container */
+        .chat-container {
+            position: absolute;
+            top: 96px; /* status bar + header + safe inset */
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 8px 12px 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            box-sizing: border-box;
+            z-index: 100;
+        }
+
+        /* Message bubbles */
+        .message {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 8px;
+            opacity: 0;
+            transform: translateY(24px) scale(0.8);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .message.sent {
+            justify-content: flex-end;
+        }
+
+        .message.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        .message-bubble {
+            max-width: 78%;
+            padding: 8px 14px;
+            font-size: 17px;
+            line-height: 1.25;
+            font-family: inherit;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            letter-spacing: -0.2px;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.15);
+        }
+
+        .message-bubble.sent {
+            background: #007AFF;
+            color: #ffffff;
+            border-top-left-radius: 18px;
+            border-top-right-radius: 18px;
+            border-bottom-left-radius: 18px;
+            border-bottom-right-radius: 6px;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.25);
+        }
+
+        .message-bubble.sent.first {
+            border-bottom-right-radius: 18px;
+        }
+
+        .message-bubble.received {
+            background: #E5E5EA;
+            color: #000000;
+            border-top-left-radius: 18px;
+            border-top-right-radius: 18px;
+            border-bottom-left-radius: 6px;
+            border-bottom-right-radius: 18px;
+        }
+
+        .message-bubble.received.first {
+            border-bottom-left-radius: 18px;
+        }
+
+        /* Typing indicator */
+        .typing-indicator {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 8px;
+            opacity: 0;
+            transform: translateY(15px);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .typing-indicator.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .typing-bubble {
+            display: flex;
+            gap: 6px;
+            background: #E5E5EA;
+            padding: 8px 14px;
+            border-radius: 18px;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 3px;
+            background: #6E6E73;
+            animation: typing-dot 1.5s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing-dot {
+            0%, 60%, 100% {
+                transform: scale(0.4);
+            }
+            30% {
+                transform: scale(1);
+            }
+        }
+
+        /* Delivered status */
+        .delivered-status {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 4px;
+            opacity: 0;
+            transform: translateY(6px);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .delivered-status.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .delivered-text {
+            font-size: 12px;
+            color: #8E8E93;
+        }
+
+        /* Keyboard */
+        .keyboard {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #D1D4DA;
+            border-top: 1px solid #B4B7BD;
+            font-family: inherit;
+            transform: translateY(320px);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .keyboard.visible {
+            transform: translateY(0);
+        }
+
+        .keyboard-accessory {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            gap: 8px;
+            background: #F2F2F7;
+            min-height: 56px;
+            box-sizing: border-box;
+        }
+
+        .camera-button {
+            width: 32px;
+            height: 32px;
+            border-radius: 16px;
+            background: #007AFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .input-field {
+            flex: 1;
+            background: #FFFFFF;
+            border-radius: 16px;
+            padding: 8px 12px;
+            color: #000000;
+            font-size: 16px;
+            min-height: 36px;
+            max-height: 72px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            line-height: 1.25;
+            white-space: pre-wrap;
+            word-break: break-word;
+            position: relative;
+        }
+
+        .input-field.placeholder {
+            opacity: 0.4;
+        }
+
+        .input-caret {
+            border-left: 2px solid #007AFF;
+            margin-left: 2px;
+            animation: caret-blink 1s infinite;
+        }
+
+        @keyframes caret-blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .send-button {
+            width: 32px;
+            height: 32px;
+            border-radius: 16px;
+            background: #007AFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .keyboard-keys {
+            padding: 6px 6px 6px;
+        }
+
+        .key-row {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 6px;
+        }
+
+        .key-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .key {
+            flex: 1;
+            background: #ffffff;
+            color: #000;
+            border-radius: 6px;
+            padding: 10px 6px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.25);
+            margin: 0 3px;
+            transition: all 0.08s ease;
+        }
+
+        .key.space {
+            flex: 4;
+        }
+
+        .key.active {
+            background: #8E8E93;
+            color: #FFFFFF;
+            transform: translateY(1px);
+        }
+
+        /* Theme variations */
+        .theme-whatsapp .device-frame {
+            background: #E5DDD5;
+        }
+
+        .theme-whatsapp .nav-header {
+            background: #075E54;
+            border-bottom-color: #054640;
+        }
+
+        .theme-whatsapp .nav-header .back,
+        .theme-whatsapp .nav-header .title {
+            color: #ffffff;
+        }
+
+        .theme-whatsapp .message-bubble.sent {
+            background: #25D366;
+        }
+
+        .theme-whatsapp .message-bubble.received {
+            background: #FFFFFF;
+        }
+
+        .theme-whatsapp .typing-bubble {
+            background: #FFFFFF;
+        }
+
+        .theme-whatsapp .typing-dot {
+            background: #9E9E9E;
+        }
+
+        .theme-whatsapp .keyboard {
+            background: #F0F0F0;
+            border-top-color: #CCCCCC;
+        }
+
+        .theme-whatsapp .keyboard-accessory {
+            background: #075E54;
+        }
+
+        .theme-snapchat .device-frame {
+            background: #FFFFFF;
+        }
+
+        .theme-snapchat .nav-header {
+            background: #FFFC00;
+            border-bottom-color: #E6E300;
+        }
+
+        .theme-snapchat .nav-header .back,
+        .theme-snapchat .nav-header .title {
+            color: #000000;
+        }
+
+        .theme-snapchat .message-bubble.sent {
+            background: #FFFC00;
+            color: #000000;
+            box-shadow: 0 2px 8px rgba(255, 252, 0, 0.3);
+        }
+
+        .theme-snapchat .message-bubble.received {
+            background: #F5F5F5;
+        }
+
+        .theme-snapchat .typing-bubble {
+            background: #F5F5F5;
+        }
+
+        .theme-snapchat .typing-dot {
+            background: #9E9E9E;
+        }
+
+        .theme-snapchat .keyboard {
+            background: #F8F8F8;
+            border-top-color: #E0E0E0;
+        }
+
+        .theme-snapchat .keyboard-accessory {
+            background: #FFFC00;
+        }
+
+        .theme-snapchat .key.active {
+            background: #FFFC00;
+            color: #000000;
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame" id="deviceFrame">
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="time">9:41</div>
+            <div class="indicators">
+                <div class="signal-bars">
+                    <div class="signal-bar"></div>
+                    <div class="signal-bar"></div>
+                    <div class="signal-bar"></div>
+                    <div class="signal-bar"></div>
+                </div>
+                <svg class="wifi-icon" viewBox="0 0 20 14">
+                    <path d="M10 13c.9 0 1.6-.7 1.6-1.6S10.9 9.8 10 9.8 8.4 10.5 8.4 11.4 9.1 13 10 13Z" fill="#000000"/>
+                    <path d="M3.3 6.6a9.2 9.2 0 0 1 13.4 0l-1.2 1.2a7.5 7.5 0 0 0-11 0L3.3 6.6Z" fill="#000000"/>
+                    <path d="M6.2 9.3a5.3 5.3 0 0 1 7.6 0l-1.2 1.2a3.6 3.6 0 0 0-5.2 0l-1.2-1.2Z" fill="#000000"/>
+                </svg>
+                <div class="battery">
+                    <div class="battery-level" id="batteryLevel"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Header -->
+        <div class="nav-header">
+            <div class="back">Back</div>
+            <div class="title" id="contactName">Contact</div>
+        </div>
+
+        <!-- Chat Container -->
+        <div class="chat-container" id="chatContainer">
+            <!-- Messages will be dynamically inserted here -->
+        </div>
+
+        <!-- Keyboard -->
+        <div class="keyboard" id="keyboard">
+            <div class="keyboard-accessory">
+                <div class="camera-button">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff">
+                        <path d="M4 7h3l1-2h8l1 2h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2zm8 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/>
+                    </svg>
+                </div>
+                <div class="input-field" id="inputField">
+                    <span class="input-caret"></span>
+                </div>
+                <div class="send-button">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff">
+                        <path d="M3 12l18-9-9 18-1.5-6L3 12z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="keyboard-keys">
+                <div class="key-row">
+                    <div class="key">Q</div>
+                    <div class="key">W</div>
+                    <div class="key">E</div>
+                    <div class="key">R</div>
+                    <div class="key">T</div>
+                    <div class="key">Y</div>
+                    <div class="key">U</div>
+                    <div class="key">I</div>
+                    <div class="key">O</div>
+                    <div class="key">P</div>
+                </div>
+                <div class="key-row">
+                    <div class="key">A</div>
+                    <div class="key">S</div>
+                    <div class="key">D</div>
+                    <div class="key">F</div>
+                    <div class="key">G</div>
+                    <div class="key">H</div>
+                    <div class="key">J</div>
+                    <div class="key">K</div>
+                    <div class="key">L</div>
+                </div>
+                <div class="key-row">
+                    <div class="key">⇧</div>
+                    <div class="key">Z</div>
+                    <div class="key">X</div>
+                    <div class="key">C</div>
+                    <div class="key">V</div>
+                    <div class="key">B</div>
+                    <div class="key">N</div>
+                    <div class="key">M</div>
+                    <div class="key">⌫</div>
+                </div>
+                <div class="key-row">
+                    <div class="key">123</div>
+                    <div class="key">:)</div>
+                    <div class="key space">space</div>
+                    <div class="key">return</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let conversation = null;
+        let currentTime = 0;
+        let animationId = null;
+
+        // Initialize the renderer
+        function initRenderer(data) {
+            conversation = data;
+            
+            // Set theme
+            const deviceFrame = document.getElementById('deviceFrame');
+            if (conversation.theme) {
+                deviceFrame.className = `device-frame theme-${conversation.theme}`;
+            }
+            
+            // Set contact name
+            const contactName = document.getElementById('contactName');
+            contactName.textContent = conversation.contactName || 'Contact';
+            
+            // Set battery level
+            const batteryLevel = document.getElementById('batteryLevel');
+            const batteryPercent = conversation.batteryLevel || 100;
+            batteryLevel.style.width = `${batteryPercent}%`;
+            if (batteryPercent < 20) {
+                batteryLevel.classList.add('low');
+            }
+            
+            // Start animation
+            startAnimation();
+        }
+
+        // Start the animation loop
+        function startAnimation() {
+            function animate() {
+                updateScene(currentTime);
+                currentTime += 1/30; // 30 FPS
+                animationId = requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        // Update the scene based on current time
+        function updateScene(time) {
+            if (!conversation) return;
+            
+            const chatContainer = document.getElementById('chatContainer');
+            const keyboard = document.getElementById('keyboard');
+            const inputField = document.getElementById('inputField');
+            
+            // Clear existing messages
+            chatContainer.innerHTML = '';
+            
+            // Process messages
+            let prevEnd = 0;
+            let keyboardVisible = false;
+            let currentInputText = '';
+            let activeChar = '';
+            
+            for (let i = 0; i < conversation.messages.length; i++) {
+                const msg = conversation.messages[i];
+                const base = i === 0 ? 0 : prevEnd + 2; // 2 second gap
+                
+                let appearTime = base;
+                let typingStart = null;
+                let typingEnd = null;
+                let showTypingIndicator = false;
+                let typingIndicatorStart = null;
+                let typingIndicatorEnd = null;
+                
+                if (msg.sent) {
+                    // Outgoing message with typing
+                    const typingDuration = msg.text.length / 11; // 11 chars/sec
+                    typingStart = base;
+                    typingEnd = typingStart + typingDuration;
+                    appearTime = typingEnd + 0.18; // send gap
+                    
+                    // Show keyboard during typing
+                    if (time >= typingStart - 0.8 && time <= typingEnd + 0.3) {
+                        keyboardVisible = true;
+                    }
+                    
+                    // Update input text during typing
+                    if (time >= typingStart && time < typingEnd) {
+                        const elapsed = time - typingStart;
+                        const chars = Math.min(msg.text.length, Math.floor(elapsed * 11));
+                        currentInputText = msg.text.slice(0, chars);
+                        if (chars < msg.text.length) {
+                            activeChar = msg.text.charAt(chars).toLowerCase();
+                        }
+                    } else if (time >= typingEnd && time < appearTime) {
+                        currentInputText = msg.text;
+                    }
+                } else {
+                    // Incoming message
+                    const showIndicator = i > 0 && conversation.messages[i-1].sent;
+                    if (showIndicator) {
+                        typingIndicatorStart = base;
+                        typingIndicatorEnd = typingIndicatorStart + 1.05; // 1.2 - 0.15
+                        appearTime = base + 1.2;
+                    } else {
+                        appearTime = base;
+                    }
+                }
+                
+                // Show typing indicator
+                if (typingIndicatorStart !== null && time >= typingIndicatorStart && time < typingIndicatorEnd) {
+                    const indicator = createTypingIndicator(false);
+                    chatContainer.appendChild(indicator);
+                }
+                
+                // Show message bubble
+                if (time >= appearTime) {
+                    const message = createMessage(msg, i);
+                    chatContainer.appendChild(message);
+                }
+                
+                prevEnd = appearTime;
+            }
+            
+            // Update keyboard visibility
+            if (keyboardVisible) {
+                keyboard.classList.add('visible');
+            } else {
+                keyboard.classList.remove('visible');
+            }
+            
+            // Update input field
+            if (currentInputText) {
+                inputField.textContent = currentInputText;
+                inputField.classList.remove('placeholder');
+            } else {
+                inputField.textContent = 'Type a message';
+                inputField.classList.add('placeholder');
+            }
+            
+            // Update active key
+            updateActiveKey(activeChar);
+        }
+
+        // Create a message element
+        function createMessage(msg, index) {
+            const message = document.createElement('div');
+            message.className = `message ${msg.sent ? 'sent' : 'received'} visible`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = `message-bubble ${msg.sent ? 'sent' : 'received'}`;
+            
+            // Determine if first/last in group
+            const prev = conversation.messages[index - 1];
+            const next = conversation.messages[index + 1];
+            const first = !prev || prev.sent !== msg.sent;
+            const last = !next || next.sent !== msg.sent;
+            
+            if (first) bubble.classList.add('first');
+            
+            bubble.textContent = msg.text;
+            message.appendChild(bubble);
+            
+            return message;
+        }
+
+        // Create typing indicator
+        function createTypingIndicator(sent) {
+            const indicator = document.createElement('div');
+            indicator.className = 'typing-indicator visible';
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'typing-bubble';
+            
+            for (let i = 0; i < 3; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'typing-dot';
+                bubble.appendChild(dot);
+            }
+            
+            indicator.appendChild(bubble);
+            return indicator;
+        }
+
+        // Update active key on keyboard
+        function updateActiveKey(char) {
+            const keys = document.querySelectorAll('.key');
+            keys.forEach(key => {
+                key.classList.remove('active');
+                if (char && key.textContent.toLowerCase() === char) {
+                    key.classList.add('active');
+                }
+            });
+        }
+
+        // Listen for conversation data
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'init') {
+                initRenderer(event.data.conversation);
+            }
+        });
+
+        // Auto-start if data is already available
+        if (window.conversationData) {
+            initRenderer(window.conversationData);
+        }
+    </script>
+</body>
+</html>
+

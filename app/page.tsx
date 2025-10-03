@@ -1,6 +1,5 @@
 'use client';
 
-import { WhopCheckout } from '@/components/payment/WhopCheckout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,24 +14,26 @@ export default function Page() {
 				<div className="text-center mb-16">
 					<div className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium mb-6">
 						<Video className="w-4 h-4" />
-						Script-to-Video Platform
+						Chat Video Creator
 					</div>
 					
 					<h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-						Transform Scripts into
-						<span className="text-blue-600"> Stunning Videos</span>
+						Create Chat Videos
+						<span className="text-blue-600"> in Minutes</span>
 					</h1>
 					
 					<p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-						Create professional video content from your scripts in minutes. 
-						Perfect for content creators, marketers, and businesses.
+						Transform your conversations into stunning chat videos with synchronized audio. 
+						Perfect for social media, marketing, and storytelling.
 					</p>
 					
 					<div className="flex flex-col sm:flex-row gap-4 justify-center">
-						<Button size="lg" className="text-lg px-8 py-3">
-							Start Creating Videos
-							<ArrowRight className="ml-2 w-5 h-5" />
-						</Button>
+						<Link href="/editor">
+							<Button size="lg" className="text-lg px-8 py-3">
+								Start Creating - 5 Free Videos
+								<ArrowRight className="ml-2 w-5 h-5" />
+							</Button>
+						</Link>
 						<Button variant="outline" size="lg" className="text-lg px-8 py-3">
 							Watch Demo
 						</Button>
@@ -46,11 +47,11 @@ export default function Page() {
 							<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
 								<Zap className="h-6 w-6 text-blue-600" />
 							</div>
-							<CardTitle>Lightning Fast</CardTitle>
+							<CardTitle>Pixel Perfect</CardTitle>
 						</CardHeader>
 						<CardContent>
 							<CardDescription>
-								Generate professional videos in minutes, not hours. Our AI-powered platform makes video creation effortless.
+								Recreate authentic chat interfaces with iMessage, WhatsApp, and Snapchat themes. Every detail is perfect.
 							</CardDescription>
 						</CardContent>
 					</Card>
@@ -60,11 +61,11 @@ export default function Page() {
 							<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
 								<Crown className="h-6 w-6 text-green-600" />
 							</div>
-							<CardTitle>Professional Quality</CardTitle>
+							<CardTitle>Synchronized Audio</CardTitle>
 						</CardHeader>
 						<CardContent>
 							<CardDescription>
-								High-quality 4K output with professional templates, animations, and effects that make your content stand out.
+								Realistic keyboard clicks during typing and send/receive chimes. Audio perfectly synchronized to your conversations.
 							</CardDescription>
 						</CardContent>
 					</Card>
@@ -74,37 +75,49 @@ export default function Page() {
 							<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
 								<Star className="h-6 w-6 text-purple-600" />
 							</div>
-							<CardTitle>Easy to Use</CardTitle>
+							<CardTitle>Multiple Themes</CardTitle>
 						</CardHeader>
 						<CardContent>
 							<CardDescription>
-								No technical skills required. Simply paste your script, choose a template, and let our platform do the rest.
+								Choose from iMessage, WhatsApp, or Snapchat themes. Each with authentic colors, fonts, and animations.
 							</CardDescription>
 						</CardContent>
 					</Card>
 				</div>
 
-				{/* Pricing Section */}
-				<div id="pricing" className="mb-16">
-					<div className="text-center mb-12">
-						<h2 className="text-4xl font-bold text-gray-900 mb-4">Simple, Transparent Pricing</h2>
-						<p className="text-lg text-gray-600">
-							Choose the plan that fits your needs. All plans include a 7-day free trial.
+				{/* Free Trial Section */}
+				<div className="mb-16">
+					<div className="text-center bg-white rounded-2xl p-12 shadow-lg">
+						<h2 className="text-3xl font-bold text-gray-900 mb-4">
+							Start with 5 Free Videos
+						</h2>
+						<p className="text-lg text-gray-600 mb-8">
+							Try our chat video creator completely free. No credit card required.
 						</p>
+						<div className="flex flex-col sm:flex-row gap-4 justify-center">
+							<Link href="/editor">
+								<Button size="lg" className="text-lg px-8 py-3">
+									Create Your First Video
+									<ArrowRight className="ml-2 w-5 h-5" />
+								</Button>
+							</Link>
+							<Button variant="outline" size="lg" className="text-lg px-8 py-3">
+								View Examples
+							</Button>
+						</div>
 					</div>
-					<WhopCheckout />
 				</div>
 
 				{/* CTA Section */}
-				<div className="text-center bg-white rounded-2xl p-12 shadow-lg">
-					<h2 className="text-3xl font-bold text-gray-900 mb-4">
-						Ready to Create Amazing Videos?
+				<div className="text-center bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-white">
+					<h2 className="text-3xl font-bold mb-4">
+						Need More Videos?
 					</h2>
-					<p className="text-lg text-gray-600 mb-8">
-						Join thousands of creators who are already using our platform to create stunning video content.
+					<p className="text-lg mb-8 opacity-90">
+						Upgrade to unlimited videos for just $19.99/month. Cancel anytime.
 					</p>
-					<Button size="lg" className="text-lg px-8 py-3">
-						Get Started Free
+					<Button size="lg" className="text-lg px-8 py-3 bg-white text-blue-600 hover:bg-gray-100">
+						Upgrade to Unlimited
 						<ArrowRight className="ml-2 w-5 h-5" />
 					</Button>
 				</div>

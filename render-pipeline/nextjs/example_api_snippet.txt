@@ -1,0 +1,458 @@
+# Next.js API Examples for Chat Renderer
+
+## 1. API Route: Submit Rendering Job
+
+Create `app/api/render/route.ts`:
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { Client, Storage, Functions } from 'appwrite';
+
+const client = new Client()
+  .setEndpoint(process.env.APPWRITE_ENDPOINT!)
+  .setProject(process.env.APPWRITE_PROJECT_ID!)
+  .setKey(process.env.APPWRITE_API_KEY!);
+
+const storage = new Storage(client);
+const functions = new Functions(client);
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { conversation, preset = 'standard', outputFilename } = body;
+
+    // Validate conversation
+    if (!conversation || !conversation.messages) {
+      return NextResponse.json(
+        { error: 'Invalid conversation data' },
+        { status: 400 }
+      );
+    }
+
+    // Submit job to Appwrite Function
+    const jobData = {
+      conversation,
+      preset,
+      output_filename: outputFilename || `chat_${Date.now()}.mp4`
+    };
+
+    const execution = await functions.createExecution(
+      process.env.APPWRITE_FUNCTION_ID!,
+      JSON.stringify(jobData)
+    );
+
+    return NextResponse.json({
+      success: true,
+      executionId: execution.$id,
+      status: 'submitted'
+    });
+
+  } catch (error) {
+    console.error('Render job submission error:', error);
+    return NextResponse.json(
+      { error: 'Failed to submit render job' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+## 2. API Route: Check Job Status
+
+Create `app/api/render/[executionId]/route.ts`:
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { Client, Functions } from 'appwrite';
+
+const client = new Client()
+  .setEndpoint(process.env.APPWRITE_ENDPOINT!)
+  .setProject(process.env.APPWRITE_PROJECT_ID!)
+  .setKey(process.env.APPWRITE_API_KEY!);
+
+const functions = new Functions(client);
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { executionId: string } }
+) {
+  try {
+    const { executionId } = params;
+
+    const execution = await functions.getExecution(
+      process.env.APPWRITE_FUNCTION_ID!,
+      executionId
+    );
+
+    const status = execution.status;
+    let result = null;
+
+    if (status === 'completed') {
+      try {
+        result = JSON.parse(execution.response);
+      } catch (e) {
+        result = { success: false, error: 'Invalid response format' };
+      }
+    }
+
+    return NextResponse.json({
+      executionId,
+      status,
+      result,
+      createdAt: execution.$createdAt,
+      updatedAt: execution.$updatedAt
+    });
+
+  } catch (error) {
+    console.error('Status check error:', error);
+    return NextResponse.json(
+      { error: 'Failed to check job status' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+## 3. React Hook: useChatRenderer
+
+Create `hooks/useChatRenderer.ts`:
+
+```typescript
+import { useState, useCallback } from 'react';
+
+interface Conversation {
+  messages: Array<{
+    id: string;
+    text: string;
+    sent: boolean;
+    sound?: boolean;
+  }>;
+  theme?: string;
+  contactName?: string;
+  batteryLevel?: number;
+}
+
+interface RenderJob {
+  executionId: string;
+  status: 'waiting' | 'processing' | 'completed' | 'failed';
+  result?: {
+    success: boolean;
+    public_url?: string;
+    error?: string;
+  };
+}
+
+export function useChatRenderer() {
+  const [job, setJob] = useState<RenderJob | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submitJob = useCallback(async (
+    conversation: Conversation,
+    preset: string = 'standard',
+    outputFilename?: string
+  ) => {
+    setLoading(true);
+    setError(null);
+    setJob(null);
+
+    try {
+      const response = await fetch('/api/render', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversation,
+          preset,
+          outputFilename
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit render job');
+      }
+
+      const data = await response.json();
+      
+      setJob({
+        executionId: data.executionId,
+        status: 'waiting'
+      });
+
+      // Start polling for status
+      pollJobStatus(data.executionId);
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      setLoading(false);
+    }
+  }, []);
+
+  const pollJobStatus = useCallback(async (executionId: string) => {
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/render/${executionId}`);
+        const data = await response.json();
+
+        setJob(prev => prev ? {
+          ...prev,
+          status: data.status,
+          result: data.result
+        } : null);
+
+        if (data.status === 'completed' || data.status === 'failed') {
+          setLoading(false);
+          return;
+        }
+
+        // Continue polling if still processing
+        if (data.status === 'processing' || data.status === 'waiting') {
+          setTimeout(poll, 2000); // Poll every 2 seconds
+        }
+
+      } catch (err) {
+        setError('Failed to check job status');
+        setLoading(false);
+      }
+    };
+
+    poll();
+  }, []);
+
+  const reset = useCallback(() => {
+    setJob(null);
+    setError(null);
+    setLoading(false);
+  }, []);
+
+  return {
+    job,
+    loading,
+    error,
+    submitJob,
+    reset
+  };
+}
+```
+
+## 4. React Component: Chat Renderer UI
+
+Create `components/ChatRenderer.tsx`:
+
+```typescript
+'use client';
+
+import { useState } from 'react';
+import { useChatRenderer } from '@/hooks/useChatRenderer';
+
+interface Message {
+  id: string;
+  text: string;
+  sent: boolean;
+  sound?: boolean;
+}
+
+interface Conversation {
+  messages: Message[];
+  theme?: string;
+  contactName?: string;
+  batteryLevel?: number;
+}
+
+export default function ChatRenderer() {
+  const { job, loading, error, submitJob, reset } = useChatRenderer();
+  const [conversation, setConversation] = useState<Conversation>({
+    messages: [
+      { id: '1', text: 'Hello!', sent: false },
+      { id: '2', text: 'Hi there!', sent: true }
+    ],
+    theme: 'imessage',
+    contactName: 'Alex',
+    batteryLevel: 87
+  });
+  const [preset, setPreset] = useState('standard');
+
+  const handleSubmit = () => {
+    submitJob(conversation, preset);
+  };
+
+  const addMessage = (text: string, sent: boolean) => {
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      text,
+      sent,
+      sound: true
+    };
+    
+    setConversation(prev => ({
+      ...prev,
+      messages: [...prev.messages, newMessage]
+    }));
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-6">Chat Video Renderer</h1>
+      
+      {/* Conversation Editor */}
+      <div className="bg-gray-100 p-4 rounded-lg mb-6">
+        <h2 className="text-lg font-semibold mb-4">Conversation</h2>
+        
+        <div className="space-y-2 mb-4">
+          {conversation.messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`p-2 rounded ${
+                msg.sent ? 'bg-blue-500 text-white ml-8' : 'bg-gray-200 mr-8'
+              }`}
+            >
+              {msg.text}
+            </div>
+          ))}
+        </div>
+        
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Add message..."
+            className="flex-1 p-2 border rounded"
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && e.currentTarget.value) {
+                addMessage(e.currentTarget.value, false);
+                e.currentTarget.value = '';
+              }
+            }}
+          />
+          <button
+            onClick={() => {
+              const input = document.querySelector('input[placeholder="Add message..."]') as HTMLInputElement;
+              if (input?.value) {
+                addMessage(input.value, true);
+                input.value = '';
+              }
+            }}
+            className="px-4 py-2 bg-blue-500 text-white rounded"
+          >
+            Send
+          </button>
+        </div>
+      </div>
+
+      {/* Settings */}
+      <div className="mb-6">
+        <label className="block mb-2">
+          Quality Preset:
+          <select
+            value={preset}
+            onChange={(e) => setPreset(e.target.value)}
+            className="ml-2 p-1 border rounded"
+          >
+            <option value="preview">Preview (720p)</option>
+            <option value="standard">Standard (1080p)</option>
+            <option value="high">High (1080p)</option>
+            <option value="ultra">Ultra (1080p 60fps)</option>
+          </select>
+        </label>
+      </div>
+
+      {/* Render Button */}
+      <button
+        onClick={handleSubmit}
+        disabled={loading || conversation.messages.length === 0}
+        className="w-full py-3 bg-green-500 text-white rounded-lg font-semibold disabled:bg-gray-400"
+      >
+        {loading ? 'Rendering...' : 'Render Video'}
+      </button>
+
+      {/* Status */}
+      {error && (
+        <div className="mt-4 p-3 bg-red-100 text-red-700 rounded">
+          Error: {error}
+        </div>
+      )}
+
+      {job && (
+        <div className="mt-4 p-3 bg-blue-100 text-blue-700 rounded">
+          <div>Status: {job.status}</div>
+          {job.result?.success && job.result.public_url && (
+            <div className="mt-2">
+              <a
+                href={job.result.public_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 underline"
+              >
+                Download Video
+              </a>
+            </div>
+          )}
+          {job.result?.error && (
+            <div className="mt-2 text-red-600">
+              Error: {job.result.error}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Reset Button */}
+      {(job || error) && (
+        <button
+          onClick={reset}
+          className="mt-4 px-4 py-2 bg-gray-500 text-white rounded"
+        >
+          Reset
+        </button>
+      )}
+    </div>
+  );
+}
+```
+
+## 5. Environment Variables
+
+Add to `.env.local`:
+
+```env
+APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+APPWRITE_PROJECT_ID=your_project_id
+APPWRITE_API_KEY=your_api_key
+APPWRITE_FUNCTION_ID=your_function_id
+APPWRITE_STORAGE_BUCKET_ID=videos
+```
+
+## 6. Package.json Dependencies
+
+```json
+{
+  "dependencies": {
+    "appwrite": "^13.0.0",
+    "next": "^14.0.0",
+    "react": "^18.0.0"
+  }
+}
+```
+
+## Usage Example
+
+```typescript
+// In your page component
+import ChatRenderer from '@/components/ChatRenderer';
+
+export default function RenderPage() {
+  return (
+    <div>
+      <ChatRenderer />
+    </div>
+  );
+}
+```
+
+This setup provides:
+- Job submission API
+- Status polling
+- React hooks for easy integration
+- Complete UI for testing
+- Error handling
+- Real-time status updates
+

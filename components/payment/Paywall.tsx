@@ -10,34 +10,19 @@ interface PaywallProps {
   feature?: string;
   onUpgrade?: () => void;
   currentPlan?: string;
+  remainingVideos?: number;
 }
 
-export function Paywall({ feature = 'this feature', onUpgrade, currentPlan }: PaywallProps) {
+export function Paywall({ feature = 'this feature', onUpgrade, currentPlan, remainingVideos = 0 }: PaywallProps) {
   const plans = [
     {
-      id: 'basic',
-      name: 'Basic',
-      price: 9.99,
-      period: 'month',
-      features: ['5 video renders per month', 'HD quality output', 'Basic templates'],
-      icon: Zap
-    },
-    {
-      id: 'pro',
-      name: 'Pro',
+      id: 'unlimited',
+      name: 'Unlimited',
       price: 19.99,
       period: 'month',
-      features: ['25 video renders per month', '4K quality output', 'All templates', 'Priority support'],
+      features: ['Unlimited video renders', 'HD & 4K quality output', 'All chat themes', 'Synchronized audio', 'No watermarks'],
       icon: Crown,
       popular: true
-    },
-    {
-      id: 'enterprise',
-      name: 'Enterprise',
-      price: 49.99,
-      period: 'month',
-      features: ['Unlimited video renders', '4K quality output', 'All templates', '24/7 support', 'API access'],
-      icon: Star
     }
   ];
 
@@ -62,14 +47,17 @@ export function Paywall({ feature = 'this feature', onUpgrade, currentPlan }: Pa
           </div>
           <CardTitle className="text-2xl">Upgrade Required</CardTitle>
           <CardDescription className="text-lg">
-            You need an active subscription to access {feature}
+            You've used all 5 free videos. Upgrade to create unlimited chat videos.
           </CardDescription>
         </CardHeader>
         
         <CardContent className="space-y-6">
           <div className="text-center">
+            <div className="text-3xl font-bold text-gray-900 mb-2">
+              {remainingVideos} videos remaining
+            </div>
             <p className="text-muted-foreground mb-4">
-              Choose a plan that fits your needs and unlock the full potential of our script-to-video tool.
+              Current plan: <Badge variant="outline">Free</Badge>
             </p>
           </div>
 
@@ -116,17 +104,17 @@ export function Paywall({ feature = 'this feature', onUpgrade, currentPlan }: Pa
 
           <div className="text-center space-y-4">
             <Button onClick={handleUpgrade} className="w-full" size="lg">
-              View Pricing Plans
+              Upgrade to Unlimited - $19.99/month
             </Button>
             
             <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Check className="h-4 w-4 text-green-500" />
-                <span>7-day free trial</span>
+                <span>Cancel anytime</span>
               </div>
               <div className="flex items-center gap-1">
                 <Check className="h-4 w-4 text-green-500" />
-                <span>Cancel anytime</span>
+                <span>No hidden fees</span>
               </div>
             </div>
           </div>

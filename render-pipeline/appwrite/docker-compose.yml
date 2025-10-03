@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  chat-renderer:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    environment:
+      - APPWRITE_ENDPOINT=${APPWRITE_ENDPOINT:-https://cloud.appwrite.io/v1}
+      - APPWRITE_PROJECT_ID=${APPWRITE_PROJECT_ID}
+      - APPWRITE_API_KEY=${APPWRITE_API_KEY}
+      - APPWRITE_STORAGE_BUCKET_ID=${APPWRITE_STORAGE_BUCKET_ID:-videos}
+    volumes:
+      - ../output:/out
+      - ../examples:/examples:ro
+    command: >
+      python appwrite/function_wrapper.py
+      --conversation /examples/conversation.json
+      --preset standard
+      --output /out/rendered_video.mp4
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # Optional: Redis for job queue
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # Optional: Job queue worker
+  worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    environment:
+      - APPWRITE_ENDPOINT=${APPWRITE_ENDPOINT:-https://cloud.appwrite.io/v1}
+      - APPWRITE_PROJECT_ID=${APPWRITE_PROJECT_ID}
+      - APPWRITE_API_KEY=${APPWRITE_API_KEY}
+      - APPWRITE_STORAGE_BUCKET_ID=${APPWRITE_STORAGE_BUCKET_ID:-videos}
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ../output:/out
+    depends_on:
+      - redis
+    command: python -m appwrite.worker
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+
+volumes:
+  redis_data:
+
