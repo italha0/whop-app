@@ -1,0 +1,91 @@
+name: chat-renderer
+runtime: python3.11
+
+# Resource allocation
+memory: 2048  # 2GB RAM (sufficient for 1080p rendering)
+timeout: 300  # 5 minutes timeout per job
+cpu: 1        # 1 vCPU (scales up automatically if needed)
+
+# Environment variables (non-sensitive)
+env:
+  APPWRITE_ENDPOINT: https://cloud.appwrite.io/v1
+  APPWRITE_PROJECT_ID: YOUR_PROJECT_ID_HERE
+  APPWRITE_BUCKET_ID: chat-videos
+  
+  # Optional: Custom font paths
+  # CHAT_FONT: /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+  # CHAT_FONT_BOLD: /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+
+# Secrets (set these in Camber dashboard or via CLI)
+secrets:
+  - APPWRITE_API_KEY  # Your Appwrite API key with files.write permission
+
+# Build commands - run once during deployment
+build:
+  # Install system dependencies
+  - apt-get update
+  - apt-get install -y ffmpeg fonts-dejavu-core fonts-dejavu-extra
+  
+  # Install Python dependencies
+  - pip install --upgrade pip
+  - pip install -r requirements.txt
+  
+  # Verify installations
+  - ffmpeg -version
+  - python -c "import moviepy; print('MoviePy:', moviepy.__version__)"
+  - python -c "from PIL import Image; print('Pillow installed')"
+
+# Entrypoint - executed for each job
+entrypoint: python camber_job.py
+
+# Files to include in deployment
+include:
+  - renderer.py
+  - camber_job.py
+  - requirements.txt
+  - assets/**  # Include audio files if present
+  - examples/**  # Include for testing
+
+# Files to exclude from deployment
+exclude:
+  - "*.pyc"
+  - __pycache__/
+  - "*.log"
+  - .git/
+  - .vscode/
+  - tests/
+  - node_modules/
+  - "*.mp4"
+  - "*.mov"
+
+# Health check (optional)
+healthcheck:
+  command: python -c "import renderer; print('OK')"
+  interval: 60
+
+# Retry policy for failed jobs
+retry:
+  max_attempts: 2
+  backoff_multiplier: 2
+
+# Scaling configuration
+scaling:
+  min_instances: 0  # Scale to zero when idle
+  max_instances: 5  # Max concurrent jobs
+  target_cpu_utilization: 70  # Scale up at 70% CPU
+
+# Logging
+logging:
+  level: INFO
+  format: json
+
+# Tags for organization
+tags:
+  - video-rendering
+  - chat-ui
+  - appwrite
+
+# Cost estimation comments:
+# - 60s video render ~= 2 min CPU time
+# - Free tier: 200 CPU hours/month = ~6,000 videos
+# - Paid: $0.10/CPU hour = $0.0033 per video
