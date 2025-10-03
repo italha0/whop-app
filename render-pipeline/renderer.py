@@ -322,10 +322,13 @@ def render_chat_video(conversation_json: Dict, output_path: str,
             except Exception:
                 pass
             return c
+        # Calculate total duration first (needed for clip duration)
+        temp_total_duration = max([m.timestamp for m in msgs] + [2.0]) + 2.0
+        
         for m in msgs:
             bubble_img = _render_bubble_image(m.text, sent=(m.sender == "you"), max_width=MAX_BUBBLE_W)
             bubble_np = np.array(bubble_img)
-            iclip = make_image_clip(bubble_np, duration=9999)
+            iclip = make_image_clip(bubble_np, duration=temp_total_duration)
 
             # Compute target x/y positions
             if m.sender == "you":
@@ -368,6 +371,13 @@ def render_chat_video(conversation_json: Dict, output_path: str,
         bg_clip = make_image_clip(bg_np, duration=total_duration)
 
         video = CompositeVideoClip([bg_clip] + clips, size=(width, height))
+        # Explicitly set the video duration
+        if hasattr(video, 'set_duration'):
+            video = video.set_duration(total_duration)
+        elif hasattr(video, 'with_duration'):
+            video = video.with_duration(total_duration)
+        else:
+            video.duration = total_duration
 
         # Audio timeline
         audio_seg = _build_audio_timeline(msgs, total_duration)
@@ -403,18 +413,19 @@ def render_chat_video(conversation_json: Dict, output_path: str,
                 audio_set_ok = False
 
         # Export mp4
+        print(f"\n🎬 Encoding video to {output_path} (this may take 1-3 minutes)...")
         video.write_videofile(
             output_path,
             fps=fps,
             codec="libx264",
             audio_codec="aac",
-            preset="veryfast",
-            ffmpeg_params=["-crf", "23"],
+            preset="ultrafast",  # Changed from veryfast to ultrafast for faster encoding
+            ffmpeg_params=["-crf", "28"],  # Increased CRF from 23 to 28 for faster encoding
             threads=max(1, os.cpu_count() or 1),
             temp_audiofile=os.path.join(tempfile.gettempdir(), "chat-audio.m4a"),
             remove_temp=True,
-            verbose=False,
-            logger=None,
+            verbose=True,  # Changed to True to see progress
+            logger='bar',  # Changed to 'bar' to show progress bar
         )
 
         # cleanup temp audio
