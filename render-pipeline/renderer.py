@@ -304,6 +304,18 @@ def render_chat_video(conversation_json: Dict, output_path: str,
             if hasattr(c, "with_position"):
                 return c.with_position(pos)
             return c
+
+        def clip_set_audio(c, audio):
+            if hasattr(c, "set_audio"):
+                return c.set_audio(audio)
+            if hasattr(c, "with_audio"):
+                return c.with_audio(audio)
+            # last resort, try direct attribute (some variants accept this during write)
+            try:
+                c.audio = audio
+            except Exception:
+                pass
+            return c
         for m in msgs:
             bubble_img = _render_bubble_image(m.text, sent=(m.sender == "you"), max_width=MAX_BUBBLE_W)
             bubble_np = np.array(bubble_img)
@@ -356,8 +368,8 @@ def render_chat_video(conversation_json: Dict, output_path: str,
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
             tmp_wav_path = tmp_wav.name
         audio_seg.export(tmp_wav_path, format="wav")
-        audio_clip = AudioFileClip(tmp_wav_path)
-        video = video.set_audio(CompositeAudioClip([audio_clip]))
+    audio_clip = AudioFileClip(tmp_wav_path)
+    video = clip_set_audio(video, CompositeAudioClip([audio_clip]))
 
         # Export mp4
         video.write_videofile(
