@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iMessage</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: #f5f7fc;
+            width: 390px;
+            height: 844px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Header */
+        .header {
+            background: #f8f8f8;
+            height: 88px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 0.5px solid #c8c8c8;
+            position: relative;
+            padding-top: 44px; /* Status bar space */
+        }
+
+        .back-button {
+            position: absolute;
+            left: 16px;
+            top: 50px;
+            color: #007AFF;
+            font-size: 34px;
+            cursor: pointer;
+            font-weight: 300;
+        }
+
+        .contact-name {
+            font-size: 17px;
+            font-weight: 600;
+            color: #000;
+        }
+
+        .contact-avatar {
+            position: absolute;
+            right: 16px;
+            top: 48px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #007AFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* Messages Container */
+        .messages-container {
+            height: calc(844px - 88px - 272px); /* Total - header - keyboard */
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* Message Bubble */
+        .message {
+            display: flex;
+            margin-bottom: 4px;
+            opacity: 0;
+            transform: translateX(-50px);
+            transition: all 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+        }
+
+        .message.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .message.from-them {
+            justify-content: flex-start;
+        }
+
+        .message.from-you {
+            justify-content: flex-end;
+            transform: translateX(50px);
+        }
+
+        .bubble {
+            max-width: 260px;
+            padding: 10px 14px;
+            border-radius: 18px;
+            font-size: 17px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        .message.from-them .bubble {
+            background: #e9ecef;
+            color: #000;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.from-you .bubble {
+            background: #007AFF;
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+
+        /* Typing Indicator */
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 14px;
+            background: #e9ecef;
+            border-radius: 18px;
+            max-width: 70px;
+            margin-left: 0;
+        }
+
+        .typing-indicator.active {
+            display: flex;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #8e8e93;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.7;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        /* iOS Keyboard */
+        .keyboard {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #d1d5db;
+            padding: 8px 3px 8px 3px;
+            border-top: 1px solid #b8bcc4;
+        }
+
+        .keyboard-row {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .keyboard-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .key {
+            background: #fff;
+            border-radius: 5px;
+            padding: 12px 0;
+            font-size: 22px;
+            font-weight: 400;
+            color: #000;
+            text-align: center;
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+            flex: 1;
+            min-width: 30px;
+            max-width: 36px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .key.wide {
+            max-width: 42px;
+        }
+
+        .key.special {
+            background: #aeb3bb;
+            color: #000;
+            font-size: 16px;
+            max-width: 42px;
+        }
+
+        .key.space {
+            flex: 3;
+            max-width: 170px;
+            font-size: 16px;
+        }
+
+        .key.active {
+            background: #c5cad1;
+        }
+
+        /* Input Bar Above Keyboard */
+        .input-bar {
+            background: #f8f8f8;
+            border-top: 0.5px solid #c8c8c8;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: absolute;
+            bottom: 272px;
+            left: 0;
+            right: 0;
+            height: 46px;
+        }
+
+        .input-field {
+            flex: 1;
+            background: #fff;
+            border: 1px solid #c8c8c8;
+            border-radius: 18px;
+            padding: 8px 12px;
+            font-size: 17px;
+            min-height: 36px;
+            max-height: 100px;
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+
+        .input-text {
+            word-wrap: break-word;
+            color: #000;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 2px;
+            height: 20px;
+            background: #007AFF;
+            margin-left: 2px;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        .send-button {
+            width: 32px;
+            height: 32px;
+            background: #007AFF;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+
+        .send-button.active {
+            opacity: 1;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 44px;
+            background: #f8f8f8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 16px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .status-time {
+            color: #000;
+        }
+
+        .status-icons {
+            display: flex;
+            gap: 4px;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-time">9:41</div>
+        <div class="status-icons">
+            <span>📶</span>
+            <span>📡</span>
+            <span>🔋</span>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="back-button">‹</div>
+        <div class="contact-name" id="contactName">Messages</div>
+        <div class="contact-avatar" id="contactAvatar">A</div>
+    </div>
+
+    <!-- Messages -->
+    <div class="messages-container" id="messagesContainer">
+        <!-- Typing indicator -->
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        </div>
+    </div>
+
+    <!-- Input Bar -->
+    <div class="input-bar">
+        <div class="input-field">
+            <span class="input-text" id="inputText"></span>
+            <span class="cursor" id="cursor"></span>
+        </div>
+        <div class="send-button" id="sendButton">
+            <span>↑</span>
+        </div>
+    </div>
+
+    <!-- iOS Keyboard -->
+    <div class="keyboard">
+        <div class="keyboard-row">
+            <div class="key">Q</div>
+            <div class="key">W</div>
+            <div class="key">E</div>
+            <div class="key">R</div>
+            <div class="key">T</div>
+            <div class="key">Y</div>
+            <div class="key">U</div>
+            <div class="key">I</div>
+            <div class="key">O</div>
+            <div class="key">P</div>
+        </div>
+        <div class="keyboard-row">
+            <div class="key">A</div>
+            <div class="key">S</div>
+            <div class="key">D</div>
+            <div class="key">F</div>
+            <div class="key">G</div>
+            <div class="key">H</div>
+            <div class="key">J</div>
+            <div class="key">K</div>
+            <div class="key">L</div>
+        </div>
+        <div class="keyboard-row">
+            <div class="key special wide">⇧</div>
+            <div class="key">Z</div>
+            <div class="key">X</div>
+            <div class="key">C</div>
+            <div class="key">V</div>
+            <div class="key">B</div>
+            <div class="key">N</div>
+            <div class="key">M</div>
+            <div class="key special wide">⌫</div>
+        </div>
+        <div class="keyboard-row">
+            <div class="key special">123</div>
+            <div class="key special">🌐</div>
+            <div class="key space">space</div>
+            <div class="key special">return</div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        window.iMessageState = {
+            messages: [],
+            currentMessageIndex: 0,
+            isTyping: false,
+            contactName: 'Messages'
+        };
+
+        // Initialize
+        function init(config) {
+            if (config.contactName) {
+                document.getElementById('contactName').textContent = config.contactName;
+                document.getElementById('contactAvatar').textContent = config.contactName.charAt(0).toUpperCase();
+            }
+            window.iMessageState.messages = config.messages || [];
+            window.iMessageState.contactName = config.contactName || 'Messages';
+        }
+
+        // Type message character by character
+        async function typeMessage(text, isFromYou) {
+            const inputText = document.getElementById('inputText');
+            const cursor = document.getElementById('cursor');
+            const sendButton = document.getElementById('sendButton');
+            
+            // Show cursor
+            cursor.style.display = 'inline-block';
+            
+            // Type each character
+            for (let i = 0; i < text.length; i++) {
+                inputText.textContent = text.substring(0, i + 1);
+                
+                // Simulate keyboard press animation
+                const char = text[i].toUpperCase();
+                const keys = document.querySelectorAll('.key');
+                keys.forEach(key => {
+                    if (key.textContent === char || (char === ' ' && key.classList.contains('space'))) {
+                        key.classList.add('active');
+                        setTimeout(() => key.classList.remove('active'), 100);
+                    }
+                });
+                
+                // Random typing speed (40-120ms per character)
+                await sleep(Math.random() * 80 + 40);
+            }
+            
+            // Activate send button
+            sendButton.classList.add('active');
+            await sleep(300);
+            
+            // Clear input and hide cursor
+            inputText.textContent = '';
+            cursor.style.display = 'none';
+            sendButton.classList.remove('active');
+        }
+
+        // Show typing indicator (for messages from them)
+        async function showTypingIndicator(duration = 1500) {
+            const indicator = document.getElementById('typingIndicator');
+            indicator.classList.add('active');
+            await sleep(duration);
+            indicator.classList.remove('active');
+        }
+
+        // Add message bubble
+        function addMessageBubble(text, isFromYou) {
+            const container = document.getElementById('messagesContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isFromYou ? 'from-you' : 'from-them'}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.textContent = text;
+            
+            messageDiv.appendChild(bubble);
+            
+            // Insert before typing indicator
+            const typingIndicator = document.getElementById('typingIndicator');
+            container.insertBefore(messageDiv, typingIndicator);
+            
+            // Trigger animation
+            setTimeout(() => {
+                messageDiv.classList.add('visible');
+            }, 50);
+            
+            // Scroll to bottom
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Play message animation sequence
+        async function playMessage(message) {
+            const isFromYou = message.sent === true || message.sender === 'you';
+            
+            if (isFromYou) {
+                // You typing
+                await typeMessage(message.text, true);
+                await sleep(200);
+                addMessageBubble(message.text, true);
+                await sleep(500);
+            } else {
+                // Them typing
+                await showTypingIndicator(Math.min(message.text.length * 50, 2000));
+                await sleep(200);
+                addMessageBubble(message.text, false);
+                await sleep(700);
+            }
+        }
+
+        // Play all messages in sequence
+        async function playAllMessages() {
+            for (const message of window.iMessageState.messages) {
+                await playMessage(message);
+            }
+            
+            // Signal completion
+            window.renderComplete = true;
+        }
+
+        // Utility
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Expose to window for external control
+        window.iMessage = {
+            init,
+            playAllMessages,
+            playMessage
+        };
+    </script>
+</body>
+</html>
