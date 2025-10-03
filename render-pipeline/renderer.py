@@ -278,10 +278,36 @@ def render_chat_video(conversation_json: Dict, output_path: str,
         y_cursor = CONTENT_TOP
         clips: List[ImageClip] = []
         final_times: List[float] = []
+
+        # Compatibility helpers across MoviePy versions
+        def make_image_clip(img, duration: float):
+            try:
+                return ImageClip(img, duration=duration)
+            except TypeError:
+                c = ImageClip(img)
+                if hasattr(c, "set_duration"):
+                    return c.set_duration(duration)
+                if hasattr(c, "with_duration"):
+                    return c.with_duration(duration)
+                return c
+
+        def clip_set_start(c, t: float):
+            if hasattr(c, "set_start"):
+                return c.set_start(t)
+            if hasattr(c, "with_start"):
+                return c.with_start(t)
+            return c
+
+        def clip_set_position(c, pos):
+            if hasattr(c, "set_position"):
+                return c.set_position(pos)
+            if hasattr(c, "with_position"):
+                return c.with_position(pos)
+            return c
         for m in msgs:
             bubble_img = _render_bubble_image(m.text, sent=(m.sender == "you"), max_width=MAX_BUBBLE_W)
             bubble_np = np.array(bubble_img)
-            iclip = ImageClip(bubble_np).set_duration(9999)
+            iclip = make_image_clip(bubble_np, duration=9999)
 
             # Compute target x/y positions
             if m.sender == "you":
@@ -307,10 +333,8 @@ def render_chat_video(conversation_json: Dict, output_path: str,
                     return (x, y0)
                 return _pos
 
-            iclip = (
-                iclip.set_start(start_t)
-                .set_position(pos_func_factory(x_from, x_target, y, start_t))
-            )
+            iclip = clip_set_start(iclip, start_t)
+            iclip = clip_set_position(iclip, pos_func_factory(x_from, x_target, y, start_t))
 
             clips.append(iclip)
             final_times.append(start_t + slide_dur)
@@ -323,7 +347,7 @@ def render_chat_video(conversation_json: Dict, output_path: str,
         d = ImageDraw.Draw(bg)
         d.rounded_rectangle([(24, 24), (width - 24, int(HEADER_BAR_H * 0.8) + 24)], radius=26, fill=(255, 255, 255))
         bg_np = np.array(bg)
-        bg_clip = ImageClip(bg_np).set_duration(total_duration)
+    bg_clip = make_image_clip(bg_np, duration=total_duration)
 
         video = CompositeVideoClip([bg_clip] + clips, size=(width, height))
 
