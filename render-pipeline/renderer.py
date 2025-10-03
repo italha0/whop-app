@@ -436,78 +436,24 @@ def render_chat_video(conversation_json: Dict, output_path: str,
 def upload_to_appwrite(file_path: str, bucket_id: str, endpoint: str, project: str, api_key: str) -> Dict[str, str]:
     """Upload a file to Appwrite Storage and return {file_id, url}.
     Requires: appwrite>=4.x
-    
-    Args:
-        file_path: Path to the MP4 file to upload
-        bucket_id: Appwrite storage bucket ID
-        endpoint: Appwrite API endpoint (e.g., https://cloud.appwrite.io/v1)
-        project: Appwrite project ID
-        api_key: Appwrite API key with files.write permission
-    
-    Returns:
-        Dict with file_id, url, download_url, and file_size
-    
-    Raises:
-        RuntimeError: If upload fails
     """
-    try:
-        from appwrite.client import Client
-        from appwrite.services.storage import Storage
-        from appwrite.exception import AppwriteException
-    except ImportError as e:
-        raise RuntimeError(
-            "Appwrite SDK not installed. Run: pip install appwrite>=4.0.0"
-        ) from e
+    from appwrite.client import Client
+    from appwrite.services.storage import Storage
 
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"File not found: {file_path}")
-    
-    file_size = os.path.getsize(file_path)
-    if file_size == 0:
-        raise ValueError("Cannot upload empty file")
-    
-    # Validate inputs
-    if not all([bucket_id, endpoint, project, api_key]):
-        raise ValueError("Missing required Appwrite configuration")
-    
-    try:
-        client = (
-            Client()
-            .set_endpoint(endpoint)
-            .set_project(project)
-            .set_key(api_key)
-        )
-        storage = Storage(client)
+    client = (
+        Client()
+        .set_endpoint(endpoint)
+        .set_project(project)
+        .set_key(api_key)
+    )
+    storage = Storage(client)
 
-        # Upload file
-        print(f"Uploading {file_size / 1024 / 1024:.1f}MB to Appwrite...")
-        
-        with open(file_path, "rb") as f:
-            result = storage.create_file(
-                bucket_id=bucket_id,
-                file_id="unique()",
-                file=f
-            )
-        
-        # Extract file info
-        file_id = result["$id"]
-        
-        # Build URLs
-        view_url = f"{endpoint}/storage/buckets/{bucket_id}/files/{file_id}/view?project={project}"
-        download_url = f"{endpoint}/storage/buckets/{bucket_id}/files/{file_id}/download?project={project}"
-        
-        return {
-            "file_id": file_id,
-            "url": view_url,
-            "download_url": download_url,
-            "file_size": file_size,
-        }
-        
-    except AppwriteException as e:
-        error_msg = f"Appwrite upload failed: {e.message if hasattr(e, 'message') else str(e)}"
-        raise RuntimeError(error_msg) from e
-    except Exception as e:
-        raise RuntimeError(f"Unexpected error during upload: {e}") from e
+    with open(file_path, "rb") as f:
+        result = storage.create_file(bucket_id=bucket_id, file_id="unique()", file=f)
+    # Build a preview/download URL; adjust permissions as needed
+    file_id = result["$id"]
+    url = f"{endpoint}/storage/buckets/{bucket_id}/files/{file_id}/view?project={project}"
+    return {"file_id": file_id, "url": url}
 
 
 # -------------------------

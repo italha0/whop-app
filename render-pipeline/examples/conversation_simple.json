@@ -1,0 +1,34 @@
+{
+  "messages": [
+    {
+      "sender": "them",
+      "text": "Hey! Did you see the game last night?",
+      "timestamp": 1.0
+    },
+    {
+      "sender": "you",
+      "text": "Yeah! That last-minute goal was insane!",
+      "timestamp": 3.5
+    },
+    {
+      "sender": "them",
+      "text": "I know right? I literally jumped off my couch 😂",
+      "timestamp": 6.0
+    },
+    {
+      "sender": "you",
+      "text": "Same here! My neighbors probably thought I was crazy lol",
+      "timestamp": 8.5
+    },
+    {
+      "sender": "them",
+      "text": "Haha worth it though! Best game of the season for sure",
+      "timestamp": 11.0
+    },
+    {
+      "sender": "you",
+      "text": "Absolutely! Can't wait for the next one",
+      "timestamp": 13.5
+    }
+  ]
+}
