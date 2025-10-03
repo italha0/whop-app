@@ -66,6 +66,12 @@ except Exception:
             ) from e
 from pydub import AudioSegment
 
+# Optional: audio array clip for direct numpy-based audio
+try:
+    from moviepy.audio.AudioClip import AudioArrayClip  # type: ignore
+except Exception:
+    AudioArrayClip = None  # type: ignore
+
 
 # -------------------------
 # Configuration
@@ -365,11 +371,36 @@ def render_chat_video(conversation_json: Dict, output_path: str,
 
         # Audio timeline
         audio_seg = _build_audio_timeline(msgs, total_duration)
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
-            tmp_wav_path = tmp_wav.name
-        audio_seg.export(tmp_wav_path, format="wav")
-    audio_clip = AudioFileClip(tmp_wav_path)
-    video = clip_set_audio(video, CompositeAudioClip([audio_clip]))
+
+        audio_set_ok = False
+        tmp_wav_path = None
+        # Try direct numpy-based audio if available
+        try:
+            if AudioArrayClip is not None:
+                samples = np.array(audio_seg.get_array_of_samples()).astype(np.float32)
+                channels = audio_seg.channels
+                if channels == 2:
+                    samples = samples.reshape((-1, 2))
+                else:
+                    samples = samples.reshape((-1, 1))
+                samples = samples / 32768.0  # int16 -> float32 [-1, 1]
+                audio_clip = AudioArrayClip(samples, fps=audio_seg.frame_rate)  # type: ignore
+                video = clip_set_audio(video, audio_clip)
+                audio_set_ok = True
+        except Exception:
+            audio_set_ok = False
+
+        if not audio_set_ok:
+            # Fallback: temp wav route
+            try:
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
+                    tmp_wav_path = tmp_wav.name
+                audio_seg.export(tmp_wav_path, format="wav")
+                audio_clip = AudioFileClip(tmp_wav_path)
+                video = clip_set_audio(video, CompositeAudioClip([audio_clip]))
+                audio_set_ok = True
+            except Exception:
+                audio_set_ok = False
 
         # Export mp4
         video.write_videofile(
@@ -388,7 +419,8 @@ def render_chat_video(conversation_json: Dict, output_path: str,
 
         # cleanup temp audio
         try:
-            os.remove(tmp_wav_path)
+            if tmp_wav_path:
+                os.remove(tmp_wav_path)
         except Exception:
             pass
 

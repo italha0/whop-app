@@ -1,6 +1,10 @@
 # Core rendering dependencies
 playwright>=1.40.0
-moviepy>=1.0.3
+# Pin MoviePy to classic API for compatibility across environments (Camber)
+moviepy==1.0.3
+# Pin imageio to 2.x series and imageio-ffmpeg <0.5 to match MoviePy 1.x expectations
+imageio<3
+imageio-ffmpeg<0.5
 pillow>=10.0.0
 numpy>=1.24.0
 
