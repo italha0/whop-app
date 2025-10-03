@@ -264,9 +264,17 @@ def render_chat_video(conversation_json: Dict, output_path: str,
         msgs: List[Message] = []
         t = 0.8  # initial delay for the first bubble
         for rm in raw_msgs:
-            sender = str(rm.get("sender", "them")).lower()
-            if sender not in ("you", "them"):
+            # Support both "sender" and "sent" formats
+            if "sender" in rm:
+                sender = str(rm.get("sender", "them")).lower()
+                if sender not in ("you", "them"):
+                    sender = "them"
+            elif "sent" in rm:
+                # Convert "sent": true/false to "you"/"them"
+                sender = "you" if rm.get("sent") else "them"
+            else:
                 sender = "them"
+            
             text = str(rm.get("text", "")).strip()
             if not text:
                 continue
@@ -362,11 +370,31 @@ def render_chat_video(conversation_json: Dict, output_path: str,
 
         total_duration = max(final_times + [2.0]) + 1.0
 
-        # Background and header
+        # Background and header (iMessage style)
         bg = Image.new("RGB", (width, height), BG_COLOR)
-        # Simple status/header bar look
         d = ImageDraw.Draw(bg)
-        d.rounded_rectangle([(24, 24), (width - 24, int(HEADER_BAR_H * 0.8) + 24)], radius=26, fill=(255, 255, 255))
+        
+        # Header bar (white background)
+        header_height = HEADER_BAR_H
+        d.rectangle([(0, 0), (width, header_height)], fill=(248, 248, 248))
+        
+        # Add contact name centered in header
+        contact_name = conversation_json.get("contactName", "Messages")
+        header_font = _load_font(38, bold=False)
+        # Get text width to center it
+        text_bbox = d.textbbox((0, 0), contact_name, font=header_font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_x = (width - text_width) // 2
+        text_y = (header_height - (text_bbox[3] - text_bbox[1])) // 2
+        d.text((text_x, text_y), contact_name, fill=(0, 0, 0), font=header_font)
+        
+        # Add back arrow (< symbol) on left
+        back_font = _load_font(48, bold=False)
+        d.text((32, text_y - 4), "<", fill=(0, 122, 255), font=back_font)
+        
+        # Add thin separator line below header
+        d.line([(0, header_height), (width, header_height)], fill=(200, 200, 200), width=1)
+        
         bg_np = np.array(bg)
         bg_clip = make_image_clip(bg_np, duration=total_duration)
 
