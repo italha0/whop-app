@@ -347,7 +347,7 @@ def render_chat_video(conversation_json: Dict, output_path: str,
         d = ImageDraw.Draw(bg)
         d.rounded_rectangle([(24, 24), (width - 24, int(HEADER_BAR_H * 0.8) + 24)], radius=26, fill=(255, 255, 255))
         bg_np = np.array(bg)
-    bg_clip = make_image_clip(bg_np, duration=total_duration)
+        bg_clip = make_image_clip(bg_np, duration=total_duration)
 
         video = CompositeVideoClip([bg_clip] + clips, size=(width, height))
 
