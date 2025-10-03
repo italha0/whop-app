@@ -1,11 +1,11 @@
+/* Tailwind CSS v4: use the single import so all tokens (colors, spacing, etc.) are registered */
+@import "tailwindcss";
+
+/* Establish layer order so Tailwind utilities win over library styles */
 @layer theme, base, frosted_ui, components, utilities;
 
-@import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/preflight.css" layer(base);
-@import "tailwindcss/utilities.css" layer(utilities);
+/* Whop frosted UI styles (loaded before utilities to avoid overriding them) */
 @import "@whop/react/styles.css" layer(frosted_ui);
-
-@config '../tailwind.config.ts';
 
 body {
 	background: var(--background);
