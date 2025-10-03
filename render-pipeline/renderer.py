@@ -37,12 +37,28 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-from moviepy.editor import (
-    ImageClip,
-    CompositeVideoClip,
-    AudioFileClip,
-    CompositeAudioClip,
-)
+# MoviePy import compatible with both 1.x and 2.x
+try:
+    from moviepy.editor import (
+        ImageClip,
+        CompositeVideoClip,
+        AudioFileClip,
+        CompositeAudioClip,
+    )
+except Exception:  # pragma: no cover - fallback for alternative packaging
+    try:
+        # MoviePy 2.x style: from moviepy import editor as mp
+        from moviepy import editor as mp  # type: ignore
+        ImageClip = mp.ImageClip  # type: ignore
+        CompositeVideoClip = mp.CompositeVideoClip  # type: ignore
+        AudioFileClip = mp.AudioFileClip  # type: ignore
+        CompositeAudioClip = mp.CompositeAudioClip  # type: ignore
+    except Exception as e:  # Provide a clear error
+        raise ModuleNotFoundError(
+            "MoviePy is installed but 'moviepy.editor' could not be imported. "
+            "This can happen with certain 2.x builds. Try upgrading/downgrading moviepy, "
+            "or ensure no local 'moviepy.py' shadows the package."
+        ) from e
 from pydub import AudioSegment
 
 
