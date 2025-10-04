@@ -252,12 +252,11 @@ async function triggerCamberJob(
       }
     );
 
-    // Trigger Camber job (async)
-    // Option A: HTTP POST to Camber endpoint
+    // Trigger Camber job (async) with Remotion
     const camberUrl = process.env.CAMBER_RENDER_ENDPOINT!;
     const camberApiKey = process.env.CAMBER_API_KEY!;
 
-    await fetch(camberUrl, {
+    const response = await fetch(camberUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -265,21 +264,52 @@ async function triggerCamberJob(
       },
       body: JSON.stringify({
         jobId,
-        conversation,
+        conversation: {
+          contactName: conversation.contactName || 'Contact',
+          theme: conversation.theme || 'imessage',
+          alwaysShowKeyboard: conversation.alwaysShowKeyboard || false,
+          messages: conversation.messages.map((msg: any, index: number) => ({
+            id: index + 1,
+            text: msg.text || '',
+            sent: msg.sent || false,
+            time: msg.time || `${Math.floor(index * 2)}:${(index * 2 * 60) % 60}`.padStart(4, '0')
+          }))
+        },
         uploadToAppwrite,
         webhookUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/camber-webhook`
       })
     });
 
+    if (!response.ok) {
+      throw new Error(`Camber request failed: ${response.status}`);
+    }
+
     return NextResponse.json({
       jobId,
       status: 'queued',
       estimatedDuration,
-      message: 'Video generation started'
+      message: 'Video generation started with Remotion'
     });
 
   } catch (error) {
     console.error('Failed to trigger Camber job:', error);
+    
+    // Update job status to failed
+    try {
+      await databases.updateDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        process.env.APPWRITE_VIDEO_JOBS_COLLECTION_ID!,
+        jobId,
+        {
+          status: 'failed',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          completedAt: new Date().toISOString()
+        }
+      );
+    } catch (updateError) {
+      console.error('Failed to update job status:', updateError);
+    }
+    
     return NextResponse.json(
       { error: 'Failed to start video generation' },
       { status: 500 }

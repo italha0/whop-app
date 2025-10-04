@@ -107,16 +107,41 @@ export function VideoGenerator({ conversation, onComplete }: VideoGeneratorProps
     poll();
   };
 
-  const downloadVideo = () => {
+  const downloadVideo = async () => {
     if (!videoUrl) return;
 
-    // Create temporary link and trigger download
-    const link = document.createElement('a');
-    link.href = videoUrl;
-    link.download = `${conversation.contactName || 'conversation'}_${Date.now()}.mp4`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      // For Appwrite URLs, we need to handle CORS
+      if (videoUrl.includes('appwrite')) {
+        // Create a proxy endpoint to download the video
+        const response = await fetch(`/api/render/download?url=${encodeURIComponent(videoUrl)}`);
+        if (!response.ok) throw new Error('Download failed');
+        
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `${conversation.contactName || 'conversation'}_${Date.now()}.mp4`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up the blob URL
+        window.URL.revokeObjectURL(downloadUrl);
+      } else {
+        // Direct download for other URLs
+        const link = document.createElement('a');
+        link.href = videoUrl;
+        link.download = `${conversation.contactName || 'conversation'}_${Date.now()}.mp4`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      console.error('Download failed:', error);
+      setError('Failed to download video');
+    }
   };
 
   return (

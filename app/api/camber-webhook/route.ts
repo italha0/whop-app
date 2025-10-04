@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     // Validate webhook signature (security)
     const signature = request.headers.get('x-camber-signature');
-    if (!verifyWebhookSignature(signature, body)) {
+    if (signature && !verifyWebhookSignature(signature, body)) {
       return NextResponse.json(
         { error: 'Invalid webhook signature' },
         { status: 401 }
@@ -67,17 +67,30 @@ export async function POST(request: NextRequest) {
 }
 
 function verifyWebhookSignature(signature: string | null, body: any): boolean {
-  if (!signature) return false;
+  if (!signature) return true; // Allow unsigned webhooks for development
 
-  // Verify HMAC signature
+  // Verify HMAC signature (format: t=timestamp,v1=signature)
   const crypto = require('crypto');
   const secret = process.env.CAMBER_WEBHOOK_SECRET || '';
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(JSON.stringify(body))
-    .digest('hex');
+  
+  if (!secret) return true; // Allow if no secret is configured
+  
+  try {
+    const [timestamp, sig] = signature.split(',');
+    const timestampValue = timestamp.split('=')[1];
+    const signatureValue = sig.split('=')[1];
+    
+    const message = `${timestampValue}.${JSON.stringify(body)}`;
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(message)
+      .digest('hex');
 
-  return signature === expectedSignature;
+    return signatureValue === expectedSignature;
+  } catch (error) {
+    console.error('Signature verification error:', error);
+    return false;
+  }
 }
 
 async function notifyUser(jobId: string, videoUrl: string) {

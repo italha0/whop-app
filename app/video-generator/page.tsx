@@ -3,220 +3,199 @@
 import { useState } from 'react';
 import { VideoGenerator } from '@/components/VideoGenerator';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash2 } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 interface Message {
   text: string;
   sent: boolean;
 }
 
+const exampleConversations = [
+  {
+    name: 'iMessage Style',
+    theme: 'imessage',
+    contactName: 'Alex',
+    messages: [
+      { text: 'Hey! How are you doing?', sent: false },
+      { text: 'I\'m doing great! Just working on some cool projects 😊', sent: true },
+      { text: 'That sounds awesome! What kind of projects?', sent: false },
+      { text: 'Building a video generator app with Remotion!', sent: true },
+      { text: 'Wow, that\'s really impressive! 🚀', sent: false }
+    ]
+  },
+  {
+    name: 'WhatsApp Style',
+    theme: 'whatsapp',
+    contactName: 'Maria',
+    messages: [
+      { text: 'Hola! ¿Cómo estás?', sent: false },
+      { text: '¡Hola! Muy bien, gracias. ¿Y tú?', sent: true },
+      { text: 'También muy bien! ¿Qué planes tienes para hoy?', sent: false },
+      { text: 'Voy a trabajar en mi proyecto de video', sent: true },
+      { text: '¡Excelente! Mucha suerte 🍀', sent: false }
+    ]
+  },
+  {
+    name: 'Snapchat Style',
+    theme: 'snapchat',
+    contactName: 'Jake',
+    messages: [
+      { text: 'Yo! What\'s up?', sent: false },
+      { text: 'Not much, just chilling! You?', sent: true },
+      { text: 'Same here! Want to hang out later?', sent: false },
+      { text: 'Sure! What time?', sent: true },
+      { text: 'How about 7pm?', sent: false },
+      { text: 'Perfect! See you then 👋', sent: true }
+    ]
+  }
+];
+
 export default function VideoGeneratorPage() {
-  const [contactName, setContactName] = useState('Alex');
-  const [messages, setMessages] = useState<Message[]>([
-    { text: 'Hey!', sent: false },
-    { text: 'Hi there!', sent: true }
-  ]);
+  const [selectedConversation, setSelectedConversation] = useState(exampleConversations[0]);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
-  const [newMessageText, setNewMessageText] = useState('');
-  const [newMessageSent, setNewMessageSent] = useState(false);
-
-  const addMessage = () => {
-    if (!newMessageText.trim()) return;
-
-    setMessages([...messages, {
-      text: newMessageText,
-      sent: newMessageSent
-    }]);
-    setNewMessageText('');
-  };
-
-  const removeMessage = (index: number) => {
-    setMessages(messages.filter((_, i) => i !== index));
-  };
-
-  const loadExample = () => {
-    setContactName('Alex');
-    setMessages([
-      { text: 'oh no.', sent: false },
-      { text: 'i thought you meant.', sent: false },
-      { text: 'wow this is awkward', sent: false },
-      { text: 'i thought you liked me too.', sent: false },
-      { text: 'HAHAHA', sent: true },
-      { text: "I'M JUST KIDDING", sent: true },
-      { text: 'I LIKE YOU TOO', sent: true },
-      { text: 'you do?! 😊', sent: false }
-    ]);
+  const handleVideoComplete = (url: string) => {
+    setVideoUrl(url);
   };
 
   return (
-    <div className="container max-w-4xl py-8">
-      <div className="space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold">iMessage Video Generator</h1>
-          <p className="text-muted-foreground mt-2">
-            Create realistic iMessage videos with typing animations
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold text-gray-900">
+            Chat Video Generator
+          </h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Create realistic chat videos with typing animations, multiple themes, 
+            and automatic processing using Remotion and Camber Cloud.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Left: Conversation Builder */}
-          <div className="space-y-4">
-            <div className="rounded-lg border p-4">
-              <h2 className="font-semibold mb-4">Conversation Builder</h2>
+        {/* Example Conversations */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Choose a Conversation Style</CardTitle>
+            <CardDescription>
+              Select from our example conversations or create your own
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {exampleConversations.map((conversation, index) => (
+                <Button
+                  key={index}
+                  variant={selectedConversation === conversation ? "default" : "outline"}
+                  className="h-auto p-4 flex flex-col items-start space-y-2"
+                  onClick={() => setSelectedConversation(conversation)}
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className="font-semibold">{conversation.name}</span>
+                    <Badge variant="secondary">{conversation.theme}</Badge>
+                  </div>
+                  <div className="text-sm text-left opacity-80">
+                    {conversation.messages.length} messages
+                  </div>
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-              {/* Contact Name */}
-              <div className="space-y-2 mb-4">
-                <label className="text-sm font-medium">Contact Name</label>
-                <Input
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  placeholder="Alex"
-                />
-              </div>
+        {/* Video Generator */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Generate Video</CardTitle>
+            <CardDescription>
+              Click the button below to generate your chat video
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <VideoGenerator
+              conversation={selectedConversation}
+              onComplete={handleVideoComplete}
+            />
+          </CardContent>
+        </Card>
 
-              {/* Messages List */}
-              <div className="space-y-2 mb-4">
-                <label className="text-sm font-medium">Messages</label>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {messages.map((msg, index) => (
-                    <div
-                      key={index}
-                      className={`flex items-start gap-2 p-2 rounded ${
-                        msg.sent ? 'bg-blue-50' : 'bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex-1">
-                        <div className="text-xs text-muted-foreground mb-1">
-                          {msg.sent ? 'You (Blue)' : 'Them (Gray)'}
-                        </div>
-                        <div className="text-sm">{msg.text}</div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeMessage(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Add Message */}
+        {/* Features */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Features</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Add Message</label>
-                <Textarea
-                  value={newMessageText}
-                  onChange={(e) => setNewMessageText(e.target.value)}
-                  placeholder="Type message..."
-                  rows={2}
-                />
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setNewMessageSent(false);
-                      addMessage();
-                    }}
-                    className="flex-1"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add from Them
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setNewMessageSent(true);
-                      addMessage();
-                    }}
-                    className="flex-1"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add from You
-                  </Button>
-                </div>
-              </div>
-
-              <Button
-                variant="link"
-                size="sm"
-                onClick={loadExample}
-                className="mt-2 w-full"
-              >
-                Load Example Conversation
-              </Button>
-            </div>
-          </div>
-
-          {/* Right: Preview & Generate */}
-          <div className="space-y-4">
-            {/* Preview */}
-            <div className="rounded-lg border p-4">
-              <h2 className="font-semibold mb-4">Preview</h2>
-              <div className="bg-gray-100 rounded-lg p-4 h-96 overflow-y-auto">
-                <div className="bg-white rounded-t-lg p-3 text-center border-b">
-                  <div className="text-sm font-medium">{contactName}</div>
-                </div>
-                <div className="space-y-2 p-3">
-                  {messages.map((msg, index) => (
-                    <div
-                      key={index}
-                      className={`flex ${msg.sent ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[70%] rounded-2xl px-4 py-2 ${
-                          msg.sent
-                            ? 'bg-blue-500 text-white rounded-br-sm'
-                            : 'bg-gray-200 text-black rounded-bl-sm'
-                        }`}
-                      >
-                        {msg.text}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Generate Video */}
-            <div className="rounded-lg border p-4">
-              <h2 className="font-semibold mb-4">Generate Video</h2>
-              {messages.length > 0 ? (
-                <VideoGenerator
-                  conversation={{ contactName, messages }}
-                  onComplete={(videoUrl) => {
-                    console.log('Video ready:', videoUrl);
-                  }}
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Add messages to generate a video
+                <h3 className="font-semibold text-green-600">🎨 Multiple Themes</h3>
+                <p className="text-sm text-gray-600">
+                  iMessage, WhatsApp, and Snapchat styles
                 </p>
-              )}
+              </div>
+              <div className="space-y-2">
+                <h3 className="font-semibold text-blue-600">⚡ Real-time Processing</h3>
+                <p className="text-sm text-gray-600">
+                  Automatic video generation with Camber Cloud
+                </p>
+              </div>
+              <div className="space-y-2">
+                <h3 className="font-semibold text-purple-600">📱 Responsive Design</h3>
+                <p className="text-sm text-gray-600">
+                  Works on desktop and mobile devices
+                </p>
+              </div>
+              <div className="space-y-2">
+                <h3 className="font-semibold text-orange-600">🎬 Realistic Animations</h3>
+                <p className="text-sm text-gray-600">
+                  Typing indicators and smooth transitions
+                </p>
+              </div>
+              <div className="space-y-2">
+                <h3 className="font-semibold text-red-600">😀 Emoji Support</h3>
+                <p className="text-sm text-gray-600">
+                  Full emoji rendering with fallbacks
+                </p>
+              </div>
+              <div className="space-y-2">
+                <h3 className="font-semibold text-indigo-600">⬇️ Direct Download</h3>
+                <p className="text-sm text-gray-600">
+                  Download videos directly to your device
+                </p>
+              </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Info */}
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-          <h3 className="font-medium text-blue-900 mb-2">How it works</h3>
-          <ul className="text-sm text-blue-800 space-y-1">
-            <li>✅ Character-by-character typing animation</li>
-            <li>✅ iOS keyboard visible at bottom</li>
-            <li>✅ Typing indicators for incoming messages</li>
-            <li>✅ Realistic message bubble animations</li>
-            <li>✅ Emoji support 😊</li>
-          </ul>
-          <p className="text-xs text-blue-700 mt-3">
-            Generation takes ~20-30 seconds for 8 messages on XSMALL GPU
-          </p>
-        </div>
+        {/* Technical Info */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Technical Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold mb-2">Built With:</h3>
+                <div className="flex flex-wrap gap-2">
+                  <Badge>Next.js 15</Badge>
+                  <Badge>Remotion</Badge>
+                  <Badge>TypeScript</Badge>
+                  <Badge>Tailwind CSS</Badge>
+                  <Badge>Appwrite</Badge>
+                  <Badge>Camber Cloud</Badge>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Video Specs:</h3>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li>• Resolution: 390x844 (iPhone dimensions)</li>
+                  <li>• Frame Rate: 30 FPS</li>
+                  <li>• Codec: H.264</li>
+                  <li>• Format: MP4</li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
