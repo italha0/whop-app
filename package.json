@@ -3,14 +3,17 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
-		"dev": "next dev --turbopack",
-		"dev:local": "next dev",
+		"dev": "cross-env NEXT_DISABLE_TURBOPACK=1 next dev",
+		"dev:turbo": "next dev --turbopack",
+		"dev:local": "cross-env NEXT_DISABLE_TURBOPACK=1 next dev",
 		"build": "next build",
 		"start": "next start",
 		"lint": "next lint",
 		"remotion:preview": "remotion preview remotion/index.ts",
 		"remotion:render": "remotion render remotion/index.ts MessageConversation out/video.mp4",
-		"remotion:studio": "remotion studio remotion/index.ts"
+		"remotion:studio": "remotion studio remotion/index.ts",
+		"test:appwrite": "node test-appwrite-connection.js",
+		"test:pipeline": "node test-video-pipeline.js"
 	},
 	"dependencies": {
 		"@hookform/resolvers": "^5.2.2",
@@ -64,6 +67,7 @@
 		"@types/react-dom": "^19",
 		"@whop-apps/dev-proxy": "^0.0.1-canary.116",
 		"dotenv-cli": "^8.0.0",
+		"cross-env": "^7.0.3",
 		"nodemon": "^3.0.1",
 		"tailwindcss": "^4",
 		"typescript": "^5"

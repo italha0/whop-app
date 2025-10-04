@@ -46,12 +46,7 @@ export async function POST(request: NextRequest) {
     // Estimate video duration (for UX)
     const estimatedDuration = estimateDuration(conversation.messages);
 
-    // Option 1: Synchronous render (for testing, <30s videos)
-    if (process.env.RENDER_MODE === 'sync') {
-      return await renderWithRemotion(conversation, uploadToAppwrite);
-    }
-
-    // Option 2: Async render with Azure VM (production)
+    // Always: Async render via worker (production). We queue a job; VM worker polls and processes.
     return await triggerAzureVMJob(conversation, userId, uploadToAppwrite, estimatedDuration);
 
   } catch (error) {
@@ -263,54 +258,12 @@ async function triggerAzureVMJob(
       }
     );
 
-    // Worker mode: If RENDER_MODE=worker or AZURE_VM_ENDPOINT is not set, return queued and let the VM worker poll Appwrite.
-    const isWorkerMode = process.env.RENDER_MODE === 'worker' || !process.env.AZURE_VM_ENDPOINT;
-    if (isWorkerMode) {
-      return NextResponse.json({
-        jobId,
-        status: 'queued',
-        estimatedDuration,
-        message: 'Video generation queued (worker will process)'
-      });
-    }
-
-    // Service mode: Trigger Azure VM (async) with Remotion
-    const azureVMUrl = process.env.AZURE_VM_ENDPOINT as string;
-    const azureApiKey = process.env.AZURE_API_KEY || '';
-
-    const response = await fetch(azureVMUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(azureApiKey ? { 'Authorization': `Bearer ${azureApiKey}` } : {})
-      },
-      body: JSON.stringify({
-        jobId,
-        conversation: {
-          contactName: conversation.contactName || 'Contact',
-          theme: conversation.theme || 'imessage',
-          alwaysShowKeyboard: conversation.alwaysShowKeyboard || false,
-          messages: conversation.messages.map((msg: any, index: number) => ({
-            id: index + 1,
-            text: msg.text || '',
-            sent: msg.sent || false,
-            time: msg.time || `${Math.floor(index * 2)}:${(index * 2 * 60) % 60}`.padStart(4, '0')
-          }))
-        },
-        uploadToAppwrite,
-        webhookUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/azure-webhook`
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Azure VM request failed: ${response.status}`);
-    }
-
+    // Worker-only: Always return queued and let the VM worker poll Appwrite.
     return NextResponse.json({
       jobId,
       status: 'queued',
       estimatedDuration,
-      message: 'Video generation started with Azure VM'
+      message: 'Video generation queued (worker will process)'
     });
 
   } catch (error) {
