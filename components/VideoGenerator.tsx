@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Download, Loader2, Video } from 'lucide-react';
+import { Download, Loader2, Video, Play, Pause, RotateCcw } from 'lucide-react';
 
 interface Message {
   text: string;
@@ -13,6 +13,8 @@ interface Message {
 interface VideoGeneratorProps {
   conversation: {
     contactName: string;
+    theme?: string;
+    alwaysShowKeyboard?: boolean;
     messages: Message[];
   };
   onComplete?: (videoUrl: string) => void;
@@ -24,28 +26,46 @@ export function VideoGenerator({ conversation, onComplete }: VideoGeneratorProps
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
 
   const generateVideo = async () => {
     try {
       setStatus('generating');
       setProgress(0);
       setError(null);
+      setVideoUrl(null);
+
+      console.log('🎬 Starting video generation with conversation:', conversation);
 
       // Start video generation
       const response = await fetch('/api/generate-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          conversation,
+          conversation: {
+            contactName: conversation.contactName || 'Contact',
+            theme: conversation.theme || 'imessage',
+            alwaysShowKeyboard: conversation.alwaysShowKeyboard || false,
+            messages: conversation.messages.map((msg, index) => ({
+              id: index + 1,
+              text: msg.text || '',
+              sent: msg.sent || false,
+              time: `${Math.floor(index * 2)}:${(index * 2 * 60) % 60}`.padStart(4, '0')
+            }))
+          },
+          userId: 'user_' + Date.now(),
           uploadToAppwrite: true
         })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to start video generation');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to start video generation');
       }
 
       const data = await response.json();
+      console.log('📡 API Response:', data);
       
       // If synchronous mode
       if (data.status === 'completed') {
@@ -105,6 +125,34 @@ export function VideoGenerator({ conversation, onComplete }: VideoGeneratorProps
     };
 
     poll();
+  };
+
+  // Video control functions
+  const togglePlayPause = () => {
+    if (videoElement) {
+      if (isPlaying) {
+        videoElement.pause();
+        setIsPlaying(false);
+      } else {
+        videoElement.play();
+        setIsPlaying(true);
+      }
+    }
+  };
+
+  const restartVideo = () => {
+    if (videoElement) {
+      videoElement.currentTime = 0;
+      videoElement.play();
+      setIsPlaying(true);
+    }
+  };
+
+  const handleVideoLoad = (element: HTMLVideoElement) => {
+    setVideoElement(element);
+    element.addEventListener('play', () => setIsPlaying(true));
+    element.addEventListener('pause', () => setIsPlaying(false));
+    element.addEventListener('ended', () => setIsPlaying(false));
   };
 
   const downloadVideo = async () => {
@@ -171,33 +219,72 @@ export function VideoGenerator({ conversation, onComplete }: VideoGeneratorProps
       )}
 
       {status === 'completed' && videoUrl && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="rounded-lg border border-green-200 bg-green-50 p-4">
             <p className="text-sm font-medium text-green-900">
               ✅ Video generated successfully!
             </p>
+            <p className="text-xs text-green-700 mt-1">
+              Job ID: {jobId}
+            </p>
           </div>
 
-          <Button
-            onClick={downloadVideo}
-            size="lg"
-            className="w-full"
-            variant="default"
-          >
-            <Download className="mr-2 h-5 w-5" />
-            Download Video
-          </Button>
+          {/* Video Preview with Controls */}
+          <div className="space-y-3">
+            <div className="rounded-lg border overflow-hidden bg-black">
+              <video
+                ref={handleVideoLoad}
+                src={videoUrl}
+                className="w-full"
+                style={{ maxHeight: '500px', minHeight: '300px' }}
+                preload="metadata"
+                playsInline
+              >
+                Your browser does not support video playback.
+              </video>
+            </div>
 
-          {/* Optional: Preview */}
-          <div className="rounded-lg border overflow-hidden">
-            <video
-              src={videoUrl}
-              controls
-              className="w-full"
-              style={{ maxHeight: '400px' }}
-            >
-              Your browser does not support video playback.
-            </video>
+            {/* Video Controls */}
+            <div className="flex items-center justify-center space-x-2">
+              <Button
+                onClick={togglePlayPause}
+                size="sm"
+                variant="outline"
+                className="flex items-center space-x-2"
+              >
+                {isPlaying ? (
+                  <Pause className="h-4 w-4" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                <span>{isPlaying ? 'Pause' : 'Play'}</span>
+              </Button>
+
+              <Button
+                onClick={restartVideo}
+                size="sm"
+                variant="outline"
+                className="flex items-center space-x-2"
+              >
+                <RotateCcw className="h-4 w-4" />
+                <span>Restart</span>
+              </Button>
+
+              <Button
+                onClick={downloadVideo}
+                size="sm"
+                className="flex items-center space-x-2"
+              >
+                <Download className="h-4 w-4" />
+                <span>Download</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Video Info */}
+          <div className="text-xs text-gray-500 text-center">
+            <p>Theme: {conversation.theme || 'imessage'} • Messages: {conversation.messages.length}</p>
+            <p>Contact: {conversation.contactName || 'Contact'}</p>
           </div>
         </div>
       )}
