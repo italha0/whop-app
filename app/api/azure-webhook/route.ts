@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * POST /api/camber-webhook
+ * POST /api/azure-webhook
  * 
- * Receives notifications from Camber when video render jobs complete
+ * Receives notifications from Azure VM when video render jobs complete
  * 
  * Body:
  * {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const { jobId, status, videoUrl, fileId, error } = body;
 
     // Validate webhook signature (security)
-    const signature = request.headers.get('x-camber-signature');
+    const signature = request.headers.get('x-azure-signature');
     if (signature && !verifyWebhookSignature(signature, body)) {
       return NextResponse.json(
         { error: 'Invalid webhook signature' },
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`📥 Webhook received for job ${jobId}: ${status}`);
+    console.log(`📥 Azure webhook received for job ${jobId}: ${status}`);
 
     // Update job in database
     const { createAdminClient } = await import('@/lib/appwrite/server');
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
 
   } catch (error) {
-    console.error('Webhook processing error:', error);
+    console.error('Azure webhook processing error:', error);
     return NextResponse.json(
       { error: 'Webhook processing failed' },
       { status: 500 }
@@ -71,7 +71,7 @@ function verifyWebhookSignature(signature: string | null, body: any): boolean {
 
   // Verify HMAC signature (format: t=timestamp,v1=signature)
   const crypto = require('crypto');
-  const secret = process.env.CAMBER_WEBHOOK_SECRET || '';
+  const secret = process.env.AZURE_WEBHOOK_SECRET || '';
   
   if (!secret) return true; // Allow if no secret is configured
   

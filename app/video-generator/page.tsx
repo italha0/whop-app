@@ -69,7 +69,7 @@ export default function VideoGeneratorPage() {
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Create realistic chat videos with typing animations, multiple themes, 
-            and automatic processing using Remotion and Camber Cloud.
+            and automatic processing using Remotion and Azure VM.
           </p>
         </div>
 
@@ -135,7 +135,7 @@ export default function VideoGeneratorPage() {
               <div className="space-y-2">
                 <h3 className="font-semibold text-blue-600">⚡ Real-time Processing</h3>
                 <p className="text-sm text-gray-600">
-                  Automatic video generation with Camber Cloud
+                  Automatic video generation with Azure VM
                 </p>
               </div>
               <div className="space-y-2">
@@ -181,7 +181,7 @@ export default function VideoGeneratorPage() {
                   <Badge>TypeScript</Badge>
                   <Badge>Tailwind CSS</Badge>
                   <Badge>Appwrite</Badge>
-                  <Badge>Camber Cloud</Badge>
+                  <Badge>Azure VM</Badge>
                 </div>
               </div>
               <div>

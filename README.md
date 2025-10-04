@@ -1,12 +1,12 @@
 # Whop App - Chat Video Generator
 
-A Next.js application that generates iMessage-style chat videos using Remotion and Camber Cloud. Users can create conversation videos with realistic typing animations, multiple themes (iMessage, WhatsApp, Snapchat), and automatic processing.
+A Next.js application that generates iMessage-style chat videos using Remotion and Azure VM. Users can create conversation videos with realistic typing animations, multiple themes (iMessage, WhatsApp, Snapchat), and automatic processing.
 
 ## 🚀 Features
 
 - **Multiple Chat Themes**: iMessage, WhatsApp, and Snapchat styles
 - **Realistic Animations**: Typing indicators, message bubbles, keyboard animations
-- **Automatic Processing**: Camber Cloud handles video rendering
+- **Automatic Processing**: Azure VM handles video rendering
 - **Direct Downloads**: Users can download videos directly to their device
 - **Real-time Status**: Live updates on video generation progress
 - **Emoji Support**: Full emoji rendering with fallbacks
@@ -15,7 +15,7 @@ A Next.js application that generates iMessage-style chat videos using Remotion a
 ## 🏗️ Architecture
 
 ```
-Frontend (Next.js) → API Routes → Camber Cloud → Appwrite Storage
+Frontend (Next.js) → API Routes → Azure VM → Appwrite Storage
      ↓                    ↓              ↓
 VideoGenerator → generate-video → Remotion Renderer → video_jobs table
 ```
@@ -27,7 +27,7 @@ whop-app/
 ├── app/                          # Next.js app directory
 │   ├── api/
 │   │   ├── generate-video/       # Main video generation API
-│   │   ├── camber-webhook/       # Camber completion webhook
+│   │   ├── azure-webhook/        # Azure VM completion webhook
 │   │   ├── render/               # Direct rendering API
 │   │   └── render/download/      # Video download proxy
 │   ├── video-generator/          # Video generator page
@@ -41,9 +41,9 @@ whop-app/
 │   ├── MessageConversation.tsx   # Main video component
 │   ├── themes.ts                 # Chat themes
 │   └── emoji.ts                  # Emoji utilities
-├── camber-remotion/              # Camber deployment files
-│   ├── remotion_renderer.py      # Camber function
-│   ├── camber.yaml              # Camber configuration
+├── azure-vm/                     # Azure VM deployment files
+│   ├── remotion_renderer.py      # Azure VM function
+│   ├── azure.yaml               # Azure configuration
 │   └── package.json             # Dependencies
 ├── lib/                         # Utilities
 └── ...
@@ -56,7 +56,7 @@ whop-app/
 - Node.js 18+
 - npm or pnpm
 - Appwrite account
-- Camber Cloud account (for production)
+- Azure VM with SSH access (for production)
 
 ### 1. Install Dependencies
 
@@ -76,10 +76,11 @@ APPWRITE_API_KEY=your-api-key
 APPWRITE_VIDEO_BUCKET_ID=your-bucket-id
 APPWRITE_VIDEO_JOBS_COLLECTION_ID=your-collection-id
 
-# Camber Configuration (for production)
-CAMBER_RENDER_ENDPOINT=https://your-function-url.camber.cloud
-CAMBER_API_KEY=your-camber-api-key
-CAMBER_WEBHOOK_SECRET=your-webhook-secret
+# Azure VM Configuration (for production)
+AZURE_VM_ENDPOINT=https://your-azure-vm-url.com/api/render
+AZURE_API_KEY=your-azure-api-key
+AZURE_WEBHOOK_SECRET=your-webhook-secret
+AZURE_SSH_KEY_PATH=C:\Users\aman7\Downloads\scriptTovideo_key.pem
 
 # App Configuration
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -216,9 +217,9 @@ curl "http://localhost:3000/api/generate-video?jobId=job_123"
 
 ## 🚀 Production Deployment
 
-### 1. Deploy to Camber Cloud
+### 1. Deploy to Azure VM
 
-Follow the [Camber Deployment Guide](./CAMBER_DEPLOYMENT.md) to set up automatic video processing.
+Set up your Azure VM with the Remotion renderer and configure the webhook endpoint for automatic video processing.
 
 ### 2. Deploy to Vercel
 
@@ -278,7 +279,7 @@ Edit `remotion/Root.tsx` to modify:
 1. **Video Generation Fails**
    - Check Appwrite credentials
    - Verify bucket permissions
-   - Check Camber function logs
+   - Check Azure VM logs
 
 2. **Download Issues**
    - Ensure CORS is properly configured
@@ -290,12 +291,12 @@ Edit `remotion/Root.tsx` to modify:
 
 ### Debug Mode
 
-Set `RENDER_MODE=sync` in your environment variables to use local rendering instead of Camber (useful for debugging).
+Set `RENDER_MODE=sync` in your environment variables to use local rendering instead of Azure VM (useful for debugging).
 
 ## 📊 Monitoring
 
 - **Appwrite Console**: Monitor job status and storage usage
-- **Camber Dashboard**: Monitor function performance and logs
+- **Azure VM**: Monitor VM performance and logs
 - **Application Logs**: Check webhook processing and errors
 
 ## 🤝 Contributing
@@ -314,7 +315,7 @@ This project is licensed under the MIT License.
 
 For support, please:
 1. Check the troubleshooting section
-2. Review the Camber deployment guide
+2. Review the Azure VM setup guide
 3. Open an issue on GitHub
 
 ---

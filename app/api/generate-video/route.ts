@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
       return await renderWithRemotion(conversation, uploadToAppwrite);
     }
 
-    // Option 2: Async render with Camber (production)
-    return await triggerCamberJob(conversation, userId, uploadToAppwrite, estimatedDuration);
+    // Option 2: Async render with Azure VM (production)
+    return await triggerAzureVMJob(conversation, userId, uploadToAppwrite, estimatedDuration);
 
   } catch (error) {
     console.error('Video generation error:', error);
@@ -224,7 +224,7 @@ async function renderWithRemotion(conversation: any, uploadToAppwrite: boolean) 
   }
 }
 
-async function triggerCamberJob(
+async function triggerAzureVMJob(
   conversation: any,
   userId: string,
   uploadToAppwrite: boolean,
@@ -252,15 +252,15 @@ async function triggerCamberJob(
       }
     );
 
-    // Trigger Camber job (async) with Remotion
-    const camberUrl = process.env.CAMBER_RENDER_ENDPOINT!;
-    const camberApiKey = process.env.CAMBER_API_KEY!;
+    // Trigger Azure VM job (async) with Remotion
+    const azureVMUrl = process.env.AZURE_VM_ENDPOINT!;
+    const azureApiKey = process.env.AZURE_API_KEY!;
 
-    const response = await fetch(camberUrl, {
+    const response = await fetch(azureVMUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${camberApiKey}`
+        'Authorization': `Bearer ${azureApiKey}`
       },
       body: JSON.stringify({
         jobId,
@@ -276,23 +276,23 @@ async function triggerCamberJob(
           }))
         },
         uploadToAppwrite,
-        webhookUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/camber-webhook`
+        webhookUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/azure-webhook`
       })
     });
 
     if (!response.ok) {
-      throw new Error(`Camber request failed: ${response.status}`);
+      throw new Error(`Azure VM request failed: ${response.status}`);
     }
 
     return NextResponse.json({
       jobId,
       status: 'queued',
       estimatedDuration,
-      message: 'Video generation started with Remotion'
+      message: 'Video generation started with Azure VM'
     });
 
   } catch (error) {
-    console.error('Failed to trigger Camber job:', error);
+    console.error('Failed to trigger Azure VM job:', error);
     
     // Update job status to failed
     try {
