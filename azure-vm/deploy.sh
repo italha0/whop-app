@@ -54,6 +54,12 @@ APPWRITE_VIDEO_BUCKET_ID=your-bucket-id
 # Azure Configuration
 AZURE_WEBHOOK_SECRET=your-webhook-secret
 PORT=3001
+
+# Azure Blob Storage (fill in when using Blob uploads)
+AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=your_account;AccountKey=your_key;EndpointSuffix=core.windows.net
+AZURE_BLOB_CONTAINER=videos
+# SAS link validity in minutes (default 1440 = 24h)
+AZURE_BLOB_SAS_TTL_MIN=1440
 EOF
 
 echo "✅ Environment file created. Please update with your actual values."

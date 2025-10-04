@@ -17,8 +17,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { jobId, status, videoUrl, fileId, error } = body;
+  const body = await request.json();
+  const { jobId, status, videoUrl, fileId, error, fileSize } = body;
 
     // Validate webhook signature (security)
     const signature = request.headers.get('x-azure-signature');
@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
     console.log(`📥 Azure webhook received for job ${jobId}: ${status}`);
 
     // Update job in database
-    const { createAdminClient } = await import('@/lib/appwrite/server');
-    const { databases } = await createAdminClient();
+  const { createAdminClient } = await import('@/lib/appwrite/server');
+  const { databases } = await createAdminClient();
 
     await databases.updateDocument(
       process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
@@ -44,11 +44,48 @@ export async function POST(request: NextRequest) {
         videoUrl: videoUrl || null,
         fileId: fileId || null,
         error: error || null,
-        completedAt: new Date().toISOString()
+        completedAt: new Date().toISOString(),
+        fileSize: fileSize ?? null
       }
     );
 
     console.log(`✅ Job ${jobId} updated: ${status}`);
+
+    // Also persist into a Video Renders collection if configured
+    try {
+      if (status === 'completed' && videoUrl && fileId && process.env.APPWRITE_VIDEO_RENDERS_COLLECTION_ID) {
+        // Fetch job for metadata
+        let jobDoc: any = null;
+        try {
+          jobDoc = await databases.getDocument(
+            process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+            process.env.APPWRITE_VIDEO_JOBS_COLLECTION_ID!,
+            jobId
+          );
+        } catch (e) {
+          console.warn('Could not read job document for metadata:', e);
+        }
+
+        await databases.createDocument(
+          process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+          process.env.APPWRITE_VIDEO_RENDERS_COLLECTION_ID!,
+          jobId,
+          {
+            status,
+            composition: 'MessageConversation',
+            user_id: jobDoc?.userId ?? 'unknown',
+            input_json: jobDoc?.conversation ?? '{}',
+            file_id: fileId || null,
+            video_url: videoUrl || null,
+            duration_sec: jobDoc?.estimatedDuration ?? null,
+            file_size_bytes: fileSize ?? null,
+          }
+        );
+        console.log('📝 Saved render metadata to video_renders');
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to save to video_renders:', e);
+    }
 
     // Optional: Send push notification to user
     if (status === 'completed') {

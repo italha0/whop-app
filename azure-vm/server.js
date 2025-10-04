@@ -6,6 +6,13 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const axios = require('axios');
+// Azure Blob Storage SDK (optional - enabled if env is present)
+let azureBlob;
+try {
+  azureBlob = require('@azure/storage-blob');
+} catch (_) {
+  // Dependency may not be installed locally; upload is conditional on env + dep
+}
 
 const app = express();
 app.use(cors());
@@ -92,8 +99,21 @@ app.post('/api/render', async (req, res) => {
     let videoUrl = null;
     let fileId = null;
 
+    // Prefer Azure Blob upload if configured
+    if (process.env.AZURE_STORAGE_CONNECTION_STRING) {
+      console.log('📤 Uploading to Azure Blob Storage...');
+      try {
+        const upload = await uploadToAzureBlob(tempOutput, `video_${jobId}_${Date.now()}.mp4`);
+        videoUrl = upload.url; // SAS URL
+        fileId = upload.blobName;
+        console.log('✅ Azure Blob upload successful:', videoUrl);
+      } catch (azureErr) {
+        console.error('❌ Azure Blob upload failed:', azureErr?.message || azureErr);
+      }
+    }
+
     // Upload to Appwrite if configured
-    if (uploadToAppwrite && process.env.APPWRITE_ENDPOINT) {
+    if (!videoUrl && uploadToAppwrite && process.env.APPWRITE_ENDPOINT) {
       console.log('📤 Uploading to Appwrite...');
       try {
         const uploadResult = await uploadToAppwrite(tempOutput, jobId);
@@ -208,6 +228,60 @@ async function uploadToAppwrite(filePath, jobId) {
   const videoUrl = `${process.env.APPWRITE_ENDPOINT}/storage/buckets/${process.env.APPWRITE_VIDEO_BUCKET_ID}/files/${fileId}/view?project=${process.env.APPWRITE_PROJECT_ID}`;
   
   return { videoUrl, fileId };
+}
+
+// Upload to Azure Blob Storage (if configured)
+async function uploadToAzureBlob(filePath, fileName) {
+  if (!process.env.AZURE_STORAGE_CONNECTION_STRING) {
+    throw new Error('AZURE_STORAGE_CONNECTION_STRING not set');
+  }
+  if (!azureBlob) {
+    throw new Error('@azure/storage-blob is not installed');
+  }
+
+  const containerName = process.env.AZURE_BLOB_CONTAINER || 'videos';
+  const {
+    BlobServiceClient,
+    StorageSharedKeyCredential,
+    generateBlobSASQueryParameters,
+    BlobSASPermissions
+  } = azureBlob;
+
+  // Initialize clients
+  const blobServiceClient = BlobServiceClient.fromConnectionString(
+    process.env.AZURE_STORAGE_CONNECTION_STRING
+  );
+  const containerClient = blobServiceClient.getContainerClient(containerName);
+  await containerClient.createIfNotExists({ access: 'private' }).catch(() => {});
+
+  // Upload
+  const blobName = fileName;
+  const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+  await blockBlobClient.uploadFile(filePath, {
+    blobHTTPHeaders: { blobContentType: 'video/mp4' }
+  });
+
+  // Build SAS URL (default 24h)
+  const accountName = process.env.AZURE_STORAGE_ACCOUNT || (process.env.AZURE_STORAGE_CONNECTION_STRING.match(/AccountName=([^;]+)/)?.[1]);
+  const accountKey = process.env.AZURE_STORAGE_KEY || (process.env.AZURE_STORAGE_CONNECTION_STRING.match(/AccountKey=([^;]+)/)?.[1]);
+  if (!accountName || !accountKey) {
+    throw new Error('Failed to parse storage account name/key');
+  }
+
+  const sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
+  const expiresOn = new Date(Date.now() + (process.env.AZURE_BLOB_SAS_TTL_MIN ? Number(process.env.AZURE_BLOB_SAS_TTL_MIN) : 1440) * 60 * 1000);
+  const sas = generateBlobSASQueryParameters(
+    {
+      containerName,
+      blobName,
+      permissions: BlobSASPermissions.parse('r'),
+      expiresOn
+    },
+    sharedKeyCredential
+  ).toString();
+
+  const url = `${blockBlobClient.url}?${sas}`;
+  return { url, blobName };
 }
 
 // Generate webhook signature

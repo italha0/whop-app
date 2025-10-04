@@ -1,9 +1,23 @@
 # PowerShell script to upload files to Azure VM
 # Run this from your local machine
 
-$VM_IP = "172.18.0.5"
-$SSH_KEY = "C:\Users\aman7\Downloads\scriptTovideo_key.pem"
-$USERNAME = "azureuser"
+# Read configuration from environment variables or prompt
+$VM_IP = $env:AZURE_VM_IP
+if (-not $VM_IP -or $VM_IP.Trim() -eq "") {
+	Write-Host "Enter your Azure VM PUBLIC IP (from Azure Portal > VM > Overview):" -ForegroundColor Yellow
+	$VM_IP = Read-Host "VM Public IP"
+}
+
+$SSH_KEY = $env:AZURE_SSH_KEY
+if (-not $SSH_KEY -or $SSH_KEY.Trim() -eq "") {
+	$SSH_KEY = "C:\Users\aman7\Downloads\scriptTovideo_key.pem"
+}
+
+$USERNAME = $env:AZURE_VM_USERNAME
+if (-not $USERNAME -or $USERNAME.Trim() -eq "") {
+	$USERNAME = "azureuser"
+}
+
 $REMOTE_DIR = "/home/azureuser/video-renderer"
 
 Write-Host "🚀 Uploading files to Azure VM..." -ForegroundColor Green

@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { renderMedia, selectComposition } from '@remotion/renderer';
-import { bundle } from '@remotion/bundler';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -83,8 +81,8 @@ export async function GET(request: NextRequest) {
 
   try {
     // Check job status from database
-    const { createSessionClient } = await import('@/lib/appwrite/server');
-    const { databases } = createSessionClient(request);
+    const { createAdminClient } = await import('@/lib/appwrite/server');
+    const { databases } = createAdminClient();
 
     const job = await databases.getDocument(
       process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
@@ -141,12 +139,14 @@ async function renderWithRemotion(conversation: any, uploadToAppwrite: boolean) 
     console.log('🎬 Starting Remotion render...');
 
     // Bundle the Remotion project
+    const { bundle } = await import('@remotion/bundler');
     const bundleLocation = await bundle({
       entryPoint: path.resolve(process.cwd(), 'remotion/index.ts'),
       webpackOverride: (config) => config,
     });
 
     // Select the composition
+    const { selectComposition, renderMedia } = await import('@remotion/renderer');
     const compositions = await selectComposition({
       serveUrl: bundleLocation,
       id: 'MessageConversation',
@@ -187,22 +187,33 @@ async function renderWithRemotion(conversation: any, uploadToAppwrite: boolean) 
     let videoUrl = null;
     let fileId = null;
 
-    if (uploadToAppwrite) {
-      // Upload to Appwrite
-      const { createSessionClient } = await import('@/lib/appwrite/server');
-      const { storage } = createSessionClient();
-
-      const file = await fs.promises.readFile(tempOutput);
+    if (uploadToAppwrite && process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT && process.env.APPWRITE_VIDEO_BUCKET_ID && process.env.APPWRITE_API_KEY) {
+      // Upload to Appwrite via REST to avoid SDK type friction in sync mode
+      const buffer = await fs.promises.readFile(tempOutput);
       const fileName = `video_${Date.now()}.mp4`;
+      const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
+      const bucket = process.env.APPWRITE_VIDEO_BUCKET_ID;
+      const project = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
+      const apiKey = process.env.APPWRITE_API_KEY;
 
-      const result = await storage.createFile(
-        process.env.APPWRITE_VIDEO_BUCKET_ID!,
-        fileName,
-        file
-      );
-
-      videoUrl = `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${process.env.APPWRITE_VIDEO_BUCKET_ID}/files/${result.$id}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
-      fileId = result.$id;
+      const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+      const res = await fetch(`${endpoint}/storage/buckets/${bucket}/files`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'X-Appwrite-Project': project!,
+          'X-Appwrite-Key': apiKey!,
+          'X-Appwrite-Response-Format': 'json'
+        },
+        body: arrayBuffer as ArrayBuffer
+      });
+      if (!res.ok) {
+        throw new Error(`Appwrite upload failed: ${res.status}`);
+      }
+      const json = await res.json();
+      const id = json.$id;
+      videoUrl = `${endpoint}/storage/buckets/${bucket}/files/${id}/view?project=${project}`;
+      fileId = id;
     }
 
     // Cleanup temp file
@@ -252,15 +263,26 @@ async function triggerAzureVMJob(
       }
     );
 
-    // Trigger Azure VM job (async) with Remotion
-    const azureVMUrl = process.env.AZURE_VM_ENDPOINT!;
-    const azureApiKey = process.env.AZURE_API_KEY!;
+    // Worker mode: If RENDER_MODE=worker or AZURE_VM_ENDPOINT is not set, return queued and let the VM worker poll Appwrite.
+    const isWorkerMode = process.env.RENDER_MODE === 'worker' || !process.env.AZURE_VM_ENDPOINT;
+    if (isWorkerMode) {
+      return NextResponse.json({
+        jobId,
+        status: 'queued',
+        estimatedDuration,
+        message: 'Video generation queued (worker will process)'
+      });
+    }
+
+    // Service mode: Trigger Azure VM (async) with Remotion
+    const azureVMUrl = process.env.AZURE_VM_ENDPOINT as string;
+    const azureApiKey = process.env.AZURE_API_KEY || '';
 
     const response = await fetch(azureVMUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${azureApiKey}`
+        ...(azureApiKey ? { 'Authorization': `Bearer ${azureApiKey}` } : {})
       },
       body: JSON.stringify({
         jobId,
