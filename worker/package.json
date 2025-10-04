@@ -8,6 +8,7 @@
 		"build": "next build",
 		"start": "next start",
 		"lint": "next lint",
+		"start:worker": "node worker.js",
 		"remotion:preview": "remotion preview remotion/index.ts",
 		"remotion:render": "remotion render remotion/index.ts MessageConversation out/video.mp4",
 		"remotion:studio": "remotion studio remotion/index.ts"
