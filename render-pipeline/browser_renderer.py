@@ -30,6 +30,14 @@ except ImportError:
     print("Then: playwright install chromium")
     sys.exit(1)
 
+try:
+    from appwrite.client import Client
+    from appwrite.services.storage import Storage
+    from appwrite.input_file import InputFile
+    APPWRITE_AVAILABLE = True
+except ImportError:
+    APPWRITE_AVAILABLE = False
+
 
 class BrowserRenderer:
     def __init__(self, width: int = 390, height: int = 844, fps: int = 30):
@@ -231,6 +239,61 @@ class BrowserRenderer:
         except subprocess.CalledProcessError as e:
             print(f"   ❌ ffmpeg failed: {e.stderr.decode()}")
             raise
+    
+    def upload_to_appwrite(
+        self,
+        video_path: str,
+        endpoint: str,
+        project_id: str,
+        api_key: str,
+        bucket_id: str
+    ) -> Dict[str, str]:
+        """Upload video to Appwrite Storage and return file info."""
+        
+        if not APPWRITE_AVAILABLE:
+            raise ImportError("Appwrite SDK not installed. Run: pip install appwrite")
+        
+        print("☁️  Uploading to Appwrite Storage...")
+        
+        # Initialize Appwrite client
+        client = Client()
+        client.set_endpoint(endpoint)
+        client.set_project(project_id)
+        client.set_key(api_key)
+        
+        storage = Storage(client)
+        
+        # Generate unique file ID
+        import uuid
+        file_id = str(uuid.uuid4())
+        filename = os.path.basename(video_path)
+        
+        try:
+            # Upload file
+            result = storage.create_file(
+                bucket_id=bucket_id,
+                file_id=file_id,
+                file=InputFile.from_path(video_path)
+            )
+            
+            # Get download URL
+            file_url = f"{endpoint}/storage/buckets/{bucket_id}/files/{file_id}/view?project={project_id}"
+            
+            print(f"   ✅ Upload complete!")
+            print(f"   📦 File ID: {file_id}")
+            print(f"   🔗 URL: {file_url}")
+            
+            return {
+                "file_id": file_id,
+                "bucket_id": bucket_id,
+                "filename": filename,
+                "url": file_url,
+                "size": os.path.getsize(video_path)
+            }
+            
+        except Exception as e:
+            print(f"   ❌ Upload failed: {e}")
+            raise
 
 
 async def main():
@@ -241,6 +304,13 @@ async def main():
     parser.add_argument('--height', type=int, default=844, help='Video height (default: 844)')
     parser.add_argument('--fps', type=int, default=30, help='Frames per second (default: 30)')
     parser.add_argument('--audio', help='Optional audio track to overlay')
+    
+    # Appwrite upload options
+    parser.add_argument('--upload', action='store_true', help='Upload video to Appwrite Storage')
+    parser.add_argument('--appwrite-endpoint', default='https://cloud.appwrite.io/v1', help='Appwrite endpoint')
+    parser.add_argument('--appwrite-project', help='Appwrite project ID')
+    parser.add_argument('--appwrite-key', help='Appwrite API key')
+    parser.add_argument('--bucket-id', help='Appwrite storage bucket ID')
     
     args = parser.parse_args()
     
@@ -263,6 +333,25 @@ async def main():
             audio_path=args.audio
         )
         print("\n🎉 Render complete!")
+        
+        # Upload to Appwrite if requested
+        if args.upload:
+            if not all([args.appwrite_project, args.appwrite_key, args.bucket_id]):
+                print("❌ Upload requires: --appwrite-project, --appwrite-key, --bucket-id")
+                sys.exit(1)
+            
+            upload_result = renderer.upload_to_appwrite(
+                video_path=args.output,
+                endpoint=args.appwrite_endpoint,
+                project_id=args.appwrite_project,
+                api_key=args.appwrite_key,
+                bucket_id=args.bucket_id
+            )
+            
+            # Output JSON for programmatic access
+            print("\n📦 Upload Result:")
+            print(json.dumps(upload_result, indent=2))
+            
     except Exception as e:
         print(f"\n❌ Render failed: {e}")
         import traceback
