@@ -1,14 +1,123 @@
-/* Tailwind CSS v4: use the single import so all tokens (colors, spacing, etc.) are registered */
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* Establish layer order so Tailwind utilities win over library styles */
-@layer theme, base, frosted_ui, components, utilities;
+@import "tw-animate-css";
 
-/* Whop frosted UI styles (loaded before utilities to avoid overriding them) */
-@import "@whop/react/styles.css" layer(frosted_ui);
+/*
+  ClipGoat Light Theme / Pink Accent Design System
+  Light-themed UI with vibrant pink/magenta accent color
+*/
+:root {
+  /* Core surfaces */
+  --background: #f9f9fb;              /* Light lavender background */
+  --background-light: #f9f9fb;        /* Same as background */
+  --card: #ffffff;                    /* Pure white cards */
+  --popover: #ffffff;                 /* Popovers */
 
-body {
-	background: var(--background);
-	color: var(--foreground);
-	font-family: Arial, Helvetica, sans-serif;
+  /* Text */
+  --foreground: #1f2937;              /* Dark charcoal gray for primary text */
+  --foreground-muted: #6b7280;        /* Medium gray for secondary text */
+  --card-foreground: #1f2937;
+  --popover-foreground: #1f2937;
+
+  /* Brand / accent */
+  --primary: #e83d84;                 /* Vibrant pink/magenta */
+  --primary-hover: #c12b6d;           /* Slightly darker pink */
+  --primary-foreground: #ffffff;      /* White text on primary */
+  --accent: #f3f4f6;                  /* Light gray accent */
+  --accent-foreground: #1f2937;
+  --secondary: #f3f4f6;               /* Light gray secondary */
+  --secondary-foreground: #1f2937;
+
+  /* UI States */
+  --muted: #f3f4f6;                   /* Light gray muted surface */
+  --muted-foreground: #6b7280;        /* Medium gray muted text */
+  --destructive: #dc2626;             /* Standard red */
+  --destructive-foreground: #ffffff;
+
+  /* Borders & Inputs */
+  --border: #e5e7eb;                  /* Light gray border */
+  --input: #f3f4f6;                   /* Light gray input background */
+  --ring: #e83d84;                    /* Pink focus ring */
+
+  /* Data viz placeholders */
+  --chart-1: #e83d84;
+  --chart-2: #6366f1;
+  --chart-3: #ec4899;
+  --chart-4: #10b981;
+  --chart-5: #f59e0b;
+
+  /* Radius scale */
+  --radius: 0.5rem; /* 8px base (md) */
+
+  /* Sidebar */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1f2937;
+  --sidebar-primary: #e83d84;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f3f4f6;
+  --sidebar-accent-foreground: #1f2937;
+  --sidebar-border: #e5e7eb;
+  --sidebar-ring: #e83d84;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-primary-hover: var(--primary-hover);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  *:focus {
+    @apply outline-2 outline-ring;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background-color: #f9f9fb;
+  }
 }

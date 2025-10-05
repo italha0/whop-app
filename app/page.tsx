@@ -1,8 +1,17 @@
-'use client';
+"use client";
 
-// Make the homepage match the editor-style UI from the screenshot.
-import EditorPage from './editor/page';
+import { useWhopAuth } from '@/hooks/useWhopAuth';
 
-export default function Page() {
-  return <EditorPage />;
+export default function HomePage() {
+  const { data, isLoading } = useWhopAuth();
+
+  if (isLoading) {
+    return <p>Loading...</p>;
+  }
+
+  return (
+    <div>
+      <h1>Welcome, {data?.username}</h1>
+    </div>
+  );
 }

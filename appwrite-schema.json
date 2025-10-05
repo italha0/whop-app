@@ -1,0 +1,122 @@
+{
+  "collections": [
+    {
+      "name": "profiles",
+      "id": "profiles",
+      "documentSecurity": true,
+      "permissions": [
+        "role:member"
+      ],
+      "attributes": [
+        {
+          "key": "email",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "email",
+          "type": "unique",
+          "attributes": ["email"]
+        }
+      ]
+    },
+    {
+      "name": "saved_scripts",
+      "id": "saved_scripts",
+      "documentSecurity": true,
+      "permissions": [
+        "role:member"
+      ],
+      "attributes": [
+        {
+          "key": "title",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "characters",
+          "type": "json",
+          "required": true,
+          "default": "[]"
+        },
+        {
+          "key": "messages",
+          "type": "json",
+          "required": true,
+          "default": "[]"
+        },
+        {
+            "key": "user_id",
+            "type": "string",
+            "required": true
+        }
+      ],
+      "indexes": [
+        {
+            "key": "user_id",
+            "type": "key",
+            "attributes": ["user_id"]
+        }
+      ]
+    },
+    {
+      "name": "video_renders",
+      "id": "video_renders",
+      "documentSecurity": true,
+      "permissions": [
+        "role:member"
+      ],
+      "attributes": [
+        {
+          "key": "user_id",
+          "type": "string",
+          "required": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "composition_id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "input_props",
+          "type": "json",
+          "required": true
+        },
+        {
+          "key": "url",
+          "type": "string",
+          "required": false
+        },
+        {
+          "key": "error_message",
+          "type": "string",
+          "required": false
+        },
+        {
+          "key": "blob_name",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "status",
+          "type": "key",
+          "attributes": ["status"]
+        },
+        {
+            "key": "user_id",
+            "type": "key",
+            "attributes": ["user_id"]
+        }
+      ]
+    }
+  ]
+}

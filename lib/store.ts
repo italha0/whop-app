@@ -38,9 +38,6 @@ interface AppState {
   // Render State
   renderProgress: RenderProgress
   
-  // User State
-  user: any
-  
   // Actions
   setSidebarCollapsed: (collapsed: boolean) => void
   setActiveTab: (tab: 'editor' | 'projects' | 'renders' | 'settings') => void
@@ -59,9 +56,6 @@ interface AppState {
   // Render Actions
   setRenderProgress: (progress: Partial<RenderProgress>) => void
   resetRender: () => void
-  
-  // User Actions
-  setUser: (user: any) => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -85,9 +79,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     progress: 0,
     status: 'idle'
   },
-  
-  // Initial User State
-  user: null,
   
   // UI Actions
   setSidebarCollapsed: (collapsed) => set({ isSidebarCollapsed: collapsed }),
@@ -155,8 +146,5 @@ export const useAppStore = create<AppState>((set, get) => ({
         status: 'idle'
       }
     })
-  },
-  
-  // User Actions
-  setUser: (user) => set({ user })
+  }
 }))

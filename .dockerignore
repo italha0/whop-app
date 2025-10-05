@@ -1,0 +1,19 @@
+# Node
+node_modules
+npm-debug.log
+pnpm-debug.log
+
+# Next build output (not needed for worker)
+.next
+out
+
+# VCS
+.git
+.gitignore
+
+# OS/Junk
+.DS_Store
+Thumbs.db
+
+# Local env
+.env

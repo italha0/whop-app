@@ -1,293 +1,95 @@
 import { NextRequest, NextResponse } from 'next/server';
-import path from 'path';
-import fs from 'fs';
-import os from 'os';
+import { randomUUID } from 'crypto';
+import { Databases } from 'node-appwrite';
+import { createServerClient } from '@/lib/appwrite/server'; // Import the Appwrite server client
+import { getRenderQueue } from '@/lib/queue';
 
-/**
- * POST /api/generate-video
- * 
- * Generates an iMessage-style video from conversation JSON using Remotion
- * 
- * Body:
- * {
- *   "conversation": {
- *     "contactName": "Alex",
- *     "messages": [
- *       { "text": "Hey!", "sent": false },
- *       { "text": "Hi there!", "sent": true }
- *     ]
- *   },
- *   "userId": "user_123",
- *   "uploadToAppwrite": true
- * }
- * 
- * Returns:
- * {
- *   "jobId": "job_abc123",
- *   "status": "queued" | "processing" | "completed" | "failed",
- *   "videoUrl": "https://..." (when completed),
- *   "estimatedDuration": 25 (seconds)
- * }
- */
+// Force dynamic to avoid caching & ensure Node runtime
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+interface Character { id: string; name: string; color: string; avatar?: string }
+interface Message { id: string; characterId: string; text: string; timestamp: number }
+interface RequestBody { characters: Character[]; messages: Message[]; isPro?: boolean; theme?: string; contactName?: string }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { conversation, userId, uploadToAppwrite = true } = body;
+    const { account, databases } = await createServerClient();
 
-    // Validate input
-    if (!conversation || !conversation.messages || conversation.messages.length === 0) {
-      return NextResponse.json(
-        { error: 'Invalid conversation data' },
-        { status: 400 }
-      );
-    }
-
-    // Estimate video duration (for UX)
-    const estimatedDuration = estimateDuration(conversation.messages);
-
-    // Always: Async render via worker (production). We queue a job; VM worker polls and processes.
-    return await triggerAzureVMJob(conversation, userId, uploadToAppwrite, estimatedDuration);
-
-  } catch (error) {
-    console.error('Video generation error:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate video' },
-      { status: 500 }
-    );
-  }
-}
-
-/**
- * GET /api/generate-video?jobId=xxx
- * 
- * Check status of video generation job
- */
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const jobId = searchParams.get('jobId');
-
-  if (!jobId) {
-    return NextResponse.json(
-      { error: 'Missing jobId parameter' },
-      { status: 400 }
-    );
-  }
-
-  try {
-    // Check job status from database
-    const { createAdminClient } = await import('@/lib/appwrite/server');
-    const { databases } = createAdminClient();
-
-    const job = await databases.getDocument(
-      process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
-      process.env.APPWRITE_VIDEO_JOBS_COLLECTION_ID!,
-      jobId
-    );
-
-    return NextResponse.json({
-      jobId: job.$id,
-      status: job.status,
-      videoUrl: job.videoUrl || null,
-      createdAt: job.$createdAt,
-      completedAt: job.completedAt || null,
-      error: job.error || null
-    });
-
-  } catch (error) {
-    console.error('Job status check error:', error);
-    return NextResponse.json(
-      { error: 'Failed to check job status' },
-      { status: 500 }
-    );
-  }
-}
-
-// ===== Helper Functions =====
-
-function estimateDuration(messages: any[]): number {
-  let total = 2.0; // Initial delay
-
-  for (const msg of messages) {
-    const text = msg.text || '';
-    const isFromYou = msg.sent === true || msg.sender === 'you';
-
-    if (isFromYou) {
-      // Typing time: ~60ms per character
-      total += text.length * 0.06 + 0.7;
-    } else {
-      // Typing indicator time
-      total += Math.min(text.length * 0.05, 2.0) + 0.9;
-    }
-  }
-
-  return Math.ceil(total + 1.0);
-}
-
-async function renderWithRemotion(conversation: any, uploadToAppwrite: boolean) {
-  // For local development / testing using Remotion
-  // This runs the Remotion renderer directly (blocks until complete)
-  
-  const tempOutput = path.join(os.tmpdir(), `video_${Date.now()}.mp4`);
-
-  try {
-    console.log('🎬 Starting Remotion render...');
-
-    // Bundle the Remotion project
-    const { bundle } = await import('@remotion/bundler');
-    const bundleLocation = await bundle({
-      entryPoint: path.resolve(process.cwd(), 'remotion/index.ts'),
-      webpackOverride: (config) => config,
-    });
-
-    // Select the composition
-    const { selectComposition, renderMedia } = await import('@remotion/renderer');
-    const compositions = await selectComposition({
-      serveUrl: bundleLocation,
-      id: 'MessageConversation',
-      inputProps: {
-        contactName: conversation.contactName || 'Contact',
-        theme: conversation.theme || 'imessage',
-        alwaysShowKeyboard: conversation.alwaysShowKeyboard || false,
-        messages: conversation.messages.map((msg: any, index: number) => ({
-          id: index + 1,
-          text: msg.text || '',
-          sent: msg.sent || false,
-          time: msg.time || `${Math.floor(index * 2)}:${(index * 2 * 60) % 60}`.padStart(4, '0')
-        }))
-      },
-    });
-
-    // Render the video
-    await renderMedia({
-      composition: compositions,
-      serveUrl: bundleLocation,
-      codec: 'h264',
-      outputLocation: tempOutput,
-      inputProps: {
-        contactName: conversation.contactName || 'Contact',
-        theme: conversation.theme || 'imessage',
-        alwaysShowKeyboard: conversation.alwaysShowKeyboard || false,
-        messages: conversation.messages.map((msg: any, index: number) => ({
-          id: index + 1,
-          text: msg.text || '',
-          sent: msg.sent || false,
-          time: msg.time || `${Math.floor(index * 2)}:${(index * 2 * 60) % 60}`.padStart(4, '0')
-        }))
-      },
-    });
-
-    console.log('✅ Remotion render complete');
-
-    let videoUrl = null;
-    let fileId = null;
-
-    if (uploadToAppwrite && process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT && process.env.APPWRITE_VIDEO_BUCKET_ID && process.env.APPWRITE_API_KEY) {
-      // Upload to Appwrite via REST to avoid SDK type friction in sync mode
-      const buffer = await fs.promises.readFile(tempOutput);
-      const fileName = `video_${Date.now()}.mp4`;
-      const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-      const bucket = process.env.APPWRITE_VIDEO_BUCKET_ID;
-      const project = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-      const apiKey = process.env.APPWRITE_API_KEY;
-
-      const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-      const res = await fetch(`${endpoint}/storage/buckets/${bucket}/files`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'X-Appwrite-Project': project!,
-          'X-Appwrite-Key': apiKey!,
-          'X-Appwrite-Response-Format': 'json'
-        },
-        body: arrayBuffer as ArrayBuffer
-      });
-      if (!res.ok) {
-        throw new Error(`Appwrite upload failed: ${res.status}`);
-      }
-      const json = await res.json();
-      const id = json.$id;
-      videoUrl = `${endpoint}/storage/buckets/${bucket}/files/${id}/view?project=${project}`;
-      fileId = id;
-    }
-
-    // Cleanup temp file
-    await fs.promises.unlink(tempOutput).catch(() => {});
-
-    return NextResponse.json({
-      status: 'completed',
-      videoUrl,
-      fileId,
-      message: 'Video rendered successfully with Remotion'
-    });
-
-  } catch (error: any) {
-    console.error('Remotion render failed:', error);
-    return NextResponse.json(
-      { error: 'Render failed', details: error.message },
-      { status: 500 }
-    );
-  }
-}
-
-async function triggerAzureVMJob(
-  conversation: any,
-  userId: string,
-  uploadToAppwrite: boolean,
-  estimatedDuration: number
-) {
-  // Create job record in Appwrite database
-  const { createSessionClient } = await import('@/lib/appwrite/server');
-  const { databases } = await createSessionClient();
-
-  const jobId = `job_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-  try {
-    // Store job in database
-    await databases.createDocument(
-      process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
-      process.env.APPWRITE_VIDEO_JOBS_COLLECTION_ID!,
-      jobId,
-      {
-        userId,
-        status: 'queued',
-        conversation: JSON.stringify(conversation),
-        estimatedDuration,
-        uploadToAppwrite,
-        createdAt: new Date().toISOString()
-      }
-    );
-
-    // Worker-only: Always return queued and let the VM worker poll Appwrite.
-    return NextResponse.json({
-      jobId,
-      status: 'queued',
-      estimatedDuration,
-      message: 'Video generation queued (worker will process)'
-    });
-
-  } catch (error) {
-    console.error('Failed to trigger Azure VM job:', error);
-    
-    // Update job status to failed
+    // Try to get user, but allow unauthenticated
+    let currentUser: any = null;
     try {
-      await databases.updateDocument(
-        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
-        process.env.APPWRITE_VIDEO_JOBS_COLLECTION_ID!,
-        jobId,
-        {
-          status: 'failed',
-          error: error instanceof Error ? error.message : 'Unknown error',
-          completedAt: new Date().toISOString()
-        }
-      );
-    } catch (updateError) {
-      console.error('Failed to update job status:', updateError);
+      currentUser = await account.get();
+    } catch (authError) {
+      currentUser = null; // Not logged in, proceed as guest
     }
-    
+
+    const body: RequestBody = await request.json();
+    const { characters, messages, theme = 'imessage', contactName } = body;
+
+    // Validate theme parameter
+    const validThemes = ['imessage', 'whatsapp', 'snapchat'];
+    const selectedTheme = validThemes.includes(theme) ? theme : 'imessage';
+    if (theme !== selectedTheme) {
+      console.warn(`Invalid theme "${theme}" provided, falling back to imessage`);
+    }
+    if (!characters || !messages || messages.length === 0) {
+      return NextResponse.json({ error: 'Invalid request: characters and messages are required' }, { status: 400 });
+    }
+    // Transform to Remotion props (same mapping as before)
+    const hasYouId = characters.some((c) => c.id === 'you');
+    const remotionMessages = messages.map((msg, index) => {
+      const isOutgoing = hasYouId ? msg.characterId === 'you' : (characters[1] ? msg.characterId === characters[1].id : false);
+      return { id: index + 1, text: msg.text, sent: isOutgoing, time: `0:${String(index * 2).padStart(2, '0')}` };
+    });
+    const contactCharacter = characters.find((c) => c.id === 'them') || characters[0];
+    const inputProps = {
+      messages: remotionMessages,
+      contactName: contactName || contactCharacter?.name || 'Contact',
+      theme: selectedTheme,
+      alwaysShowKeyboard: true,
+    };
+
+    const queueEnabled = process.env.RENDER_QUEUE_ENABLED === 'true';
+    if (queueEnabled && !process.env.REDIS_URL) {
+      return NextResponse.json({ error: 'Server not configured (REDIS_URL missing)' }, { status: 500 });
+    }
+
+    const jobId = randomUUID();
+
+    // user_id is optional if not logged in
+  await databases.createDocument(
+    process.env.APPWRITE_DATABASE_ID!,
+    process.env.APPWRITE_COLLECTION_VIDEO_RENDERS_ID!,
+    jobId,
+    {
+      user_id: currentUser ? currentUser.$id : null,
+      status: 'pending',
+      composition_id: 'MessageConversation',
+      input_props: JSON.stringify(inputProps),
+    }
+  );
+
+    if (queueEnabled) {
+      // Try enqueue; fail fast to avoid 504s
+      try {
+        const queue = getRenderQueue();
+        const enqueue = queue.add('render', { jobId });
+        await Promise.race([
+          enqueue,
+          new Promise((_, r) => setTimeout(() => r(new Error('enqueue-timeout')), 2000)),
+        ]);
+      } catch (e: any) {
+        // Log only; we still return 202 and rely on worker polling fallback
+        console.error('[API] Enqueue failed, will rely on polling worker', e?.message || e);
+      }
+    }
+
     return NextResponse.json(
-      { error: 'Failed to start video generation' },
-      { status: 500 }
+      { jobId, statusUrl: `/api/render/${jobId}/status` },
+      { status: 202 }
     );
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'Unknown error' }, { status: 500 });
   }
 }
