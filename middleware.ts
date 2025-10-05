@@ -1,9 +1,8 @@
 
-import { WhopNextJS } from '@whop-apps/sdk';
-
 export const config = {
-  // Add your app's protected routes here
-  matcher: ['/'],
+  matcher: ['/((?!_next|api|static|favicon.ico).*)'],
 };
 
-export default WhopNextJS.protect(config);
+export default function middleware() {
+  // TODO: add auth protection once Whop token verification is implemented
+}

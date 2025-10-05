@@ -1,6 +1,4 @@
-
-import { WhopNextJS } from '@whop-apps/sdk';
-
-export const {
-  GET,
-} = WhopNextJS.auth();
+// Placeholder OAuth route – implement using @whop/api or your auth provider
+export async function GET() {
+  return Response.json({ ok: true });
+}

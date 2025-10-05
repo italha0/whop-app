@@ -1,17 +1,13 @@
+export async function POST(req: Request) {
+  const secret = process.env.WHOP_WEBHOOK_SECRET;
+  if (!secret) return new Response('Missing secret', { status: 500 });
+  const sig = req.headers.get('x-whop-signature') || req.headers.get('x-whop-secret');
+  if (sig !== secret) return new Response('Unauthorized', { status: 401 });
+  const body = await req.json().catch(() => ({}));
+  // TODO: handle specific event types in `body`
+  return Response.json({ received: true });
+}
 
-import { WhopNextJS } from '@whop-apps/sdk';
-
-export const {
-  GET,
-  POST,
-} = WhopNextJS.webhook({
-  whop: {
-    secret: process.env.AZURE_WEBHOOK_SECRET!,
-  },
-  async onActivated(event) {
-    // Called when a user purchases a product and gains access to your app
-  },
-  async onDeactivated(event) {
-    // Called when a user's access to your app is removed
-  },
-});
+export async function GET() {
+  return new Response('OK');
+}

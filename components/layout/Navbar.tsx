@@ -11,30 +11,17 @@ import {
   MessageSquare 
 } from "lucide-react"
 import { useAppStore } from "@/lib/store"
-import { createClient } from "@/lib/appwrite/client"
 import { useRouter } from "next/navigation"
 
 export function Navbar() {
   const { 
     isSidebarCollapsed, 
-    setSidebarCollapsed, 
-    user, 
-    setUser 
+    setSidebarCollapsed
   } = useAppStore()
   
   const router = useRouter()
-  const { account } = createClient()
-
   const handleSignOut = async () => {
-    try {
-      await account.deleteSession("current")
-      setUser(null)
-      router.push("/")
-    } catch (e) {
-      // Optionally show error toast
-      setUser(null)
-      router.push("/")
-    }
+    router.push("/")
   }
 
   return (
@@ -65,13 +52,10 @@ export function Navbar() {
 
       {/* Right Section */}
       <div className="flex items-center gap-3">
-        {user && (
+  {false && (
           <>
             <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
-              <span>Welcome back,</span>
-              <span className="text-foreground font-medium">
-                {user.user_metadata?.full_name || user.email?.split("@")[0] || "User"}
-              </span>
+              <span>Welcome back</span>
             </div>
             
             <div className="flex items-center gap-1">
@@ -95,7 +79,7 @@ export function Navbar() {
           </>
         )}
         
-        {!user && (
+  {true && (
           <Button
             variant="outline"
             size="sm"

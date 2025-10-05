@@ -6,6 +6,8 @@
     "build": "node scripts/prebundle-remotion.cjs || echo prebundle:skipped && next build",
     "prebundle": "node scripts/prebundle-remotion.cjs",
     "dev": "next dev --port 5000 --hostname 0.0.0.0",
+  "dev:whop": "pnpm dev",
+  "whop:proxy": "whop-proxy",
     "lint": "next lint",
     "start": "next start",
     "remotion:preview": "remotion preview remotion/index.ts",
@@ -16,8 +18,8 @@
     "worker": "npm run build:worker && node worker/worker.cjs"
   },
   "dependencies": {
-    "@whop-apps/nextjs": "^0.8.0",
-    "@whop-apps/sdk": "^0.4.0",
+    "@whop-apps/sdk": "0.0.1-canary.117",
+    "@whop/api": "^0.0.51",
     "@azure/storage-blob": "^12.28.0",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-dialog": "1.1.5",
@@ -93,6 +95,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@whop-apps/dev-proxy": "0.0.1-canary.117",
     "@types/node": "^22",
     "@types/react": "19.0.1",
     "@types/react-dom": "19.0.1",
