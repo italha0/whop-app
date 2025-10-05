@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getWhopTokenFromRequest, verifyWhopToken } from '@/lib/whop-auth';
 
 export const config = {
   // Run on all pages; let API routes handle their own auth
@@ -9,13 +10,19 @@ export const config = {
 // - If the Whop dev proxy forwards x-whop-user-id/x-whop-username, persist to cookie for client usage
 // - Attach x-whop-* headers to the request for server components/route handlers
 // - Soft-protect app pages under /editor, /projects, /renders, /settings
-export default function middleware(req: NextRequest) {
+export default async function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
   const resHeaders = new Headers();
 
   const hdrUserId = req.headers.get('x-whop-user-id');
   const hdrUsername = req.headers.get('x-whop-username');
   const cookieUser = req.cookies.get('whop_user_id')?.value;
+  const incomingToken = getWhopTokenFromRequest(req);
+  let verified = false;
+  if (incomingToken) {
+    const v = await verifyWhopToken(incomingToken);
+    verified = !!v.valid;
+  }
 
   let userId = cookieUser || hdrUserId || '';
   const isAuthed = Boolean(userId);
@@ -34,13 +41,24 @@ export default function middleware(req: NextRequest) {
 
   if (hdrUserId && hdrUserId !== cookieUser) {
     response.cookies.set('whop_user_id', hdrUserId, {
-      httpOnly: false, // readable by client hook for now
+      httpOnly: false, // temporary; migrate to server-only session later
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
     userId = hdrUserId;
+  }
+
+  // If a token is present and verified, persist HttpOnly cookie for server use
+  if (incomingToken && verified) {
+    response.cookies.set('whop_token', incomingToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+    });
   }
 
   // Soft-protect certain app areas

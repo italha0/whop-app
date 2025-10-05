@@ -17,13 +17,12 @@ const plans = [
     period: "forever",
     description: "Perfect for trying out ChatVideo",
     features: [
-      "Create unlimited chat scripts",
-      "720p video exports",
-      "Basic themes",
+      "Create limited chat scripts",
+      "480p video exports",
       "Watermarked videos",
       "Up to 5 saved scripts",
     ],
-    limitations: ["Watermarked videos", "Limited themes", "720p quality only"],
+    limitations: ["Watermarked videos", "Limited themes", "480p quality only"],
     cta: "Get Started",
     popular: false,
     href: "/auth/signup",
@@ -37,10 +36,7 @@ const plans = [
       "Everything in Free",
       "1080p HD video exports",
       "No watermarks",
-      "Premium themes & styles",
-      "Unlimited saved scripts",
       "Priority support",
-      "Custom avatars",
       "Advanced animations",
     ],
     cta: "Upgrade to Pro",
@@ -119,104 +115,7 @@ export default function PricingPage() {
           ))}
         </div>
 
-        {/* Feature Comparison */}
-  <div className="mt-24">
-    <h2 className="text-3xl font-bold text-center mb-12">Feature Comparison</h2>
-    <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <Card>
-              <CardHeader className="text-center">
-                <Video className="w-8 h-8 mx-auto mb-2 text-primary" />
-                <CardTitle>Video Quality</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span>Free</span>
-      <span className="text-foreground-muted">720p</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Pro</span>
-      <span className="text-primary font-semibold">1080p HD</span>
-                </div>
-              </CardContent>
-            </Card>
-
-    <Card>
-              <CardHeader className="text-center">
-                <Palette className="w-8 h-8 mx-auto mb-2 text-primary" />
-                <CardTitle>Themes & Styles</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span>Free</span>
-      <span className="text-foreground-muted">3 basic themes</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Pro</span>
-      <span className="text-primary font-semibold">20+ premium themes</span>
-                </div>
-              </CardContent>
-            </Card>
-
-    <Card>
-              <CardHeader className="text-center">
-                <Download className="w-8 h-8 mx-auto mb-2 text-primary" />
-                <CardTitle>Exports</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span>Free</span>
-      <span className="text-foreground-muted">With watermark</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Pro</span>
-      <span className="text-primary font-semibold">No watermark</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* FAQ */}
-        <div className="mt-24 max-w-2xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">Frequently Asked Questions</h2>
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Can I cancel anytime?</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-foreground-muted">
-                  Yes! You can cancel your Pro subscription at any time. You'll continue to have access to Pro features
-                  until the end of your billing period.
-                </p>
-              </CardContent>
-            </Card>
-
-      <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">What happens to my videos if I downgrade?</CardTitle>
-              </CardHeader>
-              <CardContent>
-        <p className="text-foreground-muted">
-                  All videos you've already created will remain yours forever. However, new videos will include
-                  watermarks and be limited to 720p quality.
-                </p>
-              </CardContent>
-            </Card>
-
-      <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Do you offer refunds?</CardTitle>
-              </CardHeader>
-              <CardContent>
-        <p className="text-foreground-muted">
-                  We offer a 30-day money-back guarantee. If you're not satisfied with ChatVideo Pro, contact us for a
-                  full refund.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+  
       </div>
     </div>
   )
