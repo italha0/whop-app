@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Databases } from 'node-appwrite';
+import type { Models } from 'node-appwrite';
 import { createServerClient } from '@/lib/appwrite/server';
 import { generateSASUrl } from '@/lib/azure-blob';
 
@@ -10,7 +10,12 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ jobId: str
 	try {
 		const { databases } = await createServerClient();
 		const { jobId } = await ctx.params;
-		const data = await databases.getDocument(
+				const data = await databases.getDocument<Models.Document & {
+					status: string;
+					url: string | null;
+					blob_name?: string | null;
+					error_message?: string | null;
+				}>(
 			process.env.APPWRITE_DATABASE_ID!,
 			process.env.APPWRITE_COLLECTION_VIDEO_RENDERS_ID!,
 			jobId
@@ -18,7 +23,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ jobId: str
 
 		if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-		const { status, url, blob_name, error_message } = data as { status: string; url: string | null; blob_name?: string | null; error_message?: string | null };
+		const { status, url, blob_name, error_message } = data;
 		let finalUrl = url || null;
 
 		if (status === 'done') {
