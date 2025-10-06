@@ -25,7 +25,7 @@ const plans = [
     limitations: ["Watermarked videos", "Limited themes", "480p quality only"],
     cta: "Get Started",
     popular: false,
-    href: "/auth/signup",
+    href: "/api/dev/login-free?next=/editor",
   },
   {
     name: "Pro",
