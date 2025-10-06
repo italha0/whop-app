@@ -14,6 +14,37 @@ export default async function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
   const resHeaders = new Headers();
 
+  // Handle Whop dev proxy user token in query params (e.g., whop-dev-user-token)
+  const devToken = url.searchParams.get('whop-dev-user-token');
+  const devUserId = url.searchParams.get('whop-dev-user-id');
+  const devUsername = url.searchParams.get('whop-dev-username');
+  if (devToken) {
+    // Clean URL (remove dev params) and set cookies
+    url.searchParams.delete('whop-dev-user-token');
+    if (devUserId) url.searchParams.delete('whop-dev-user-id');
+    if (devUsername) url.searchParams.delete('whop-dev-username');
+
+    const redirect = NextResponse.redirect(url, 303);
+    // Persist token (HttpOnly) and basic identity (temporary client-readable)
+    redirect.cookies.set('whop_token', devToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+    });
+    if (devUserId) {
+      redirect.cookies.set('whop_user_id', devUserId, {
+        httpOnly: false,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7,
+      });
+    }
+    return redirect;
+  }
+
   const hdrUserId = req.headers.get('x-whop-user-id');
   const hdrUsername = req.headers.get('x-whop-username');
   const cookieUser = req.cookies.get('whop_user_id')?.value;

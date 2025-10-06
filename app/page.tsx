@@ -1,17 +1,15 @@
 "use client";
 
-import { useWhopAuth } from '@/hooks/useWhopAuth';
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAppStore } from "@/lib/store";
+import { MainLayout } from "@/components/layout/MainLayout";
 
 export default function HomePage() {
-  const { data, isLoading } = useWhopAuth();
+  const { user } = useAppStore();
+  const router = useRouter();
 
-  if (isLoading) {
-    return <p>Loading...</p>;
-  }
+  // Auth is now optional. Show editor for all users.
 
-  return (
-    <div>
-      <h1>Welcome, {data?.username}</h1>
-    </div>
-  );
+  return <MainLayout />;
 }
